@@ -2,6 +2,127 @@
 
 This repository ships no compose file. The host deployment (VisionClaw) implements the contract below and mounts this repository as a git submodule at `codescape/`. Any other host must meet the same contract.
 
+## Compose contract
+
+The service the host defines. Values are VisionClaw's; another host substitutes its own paths. `deploy/codescape-entrypoint.sh` is the entrypoint and reads only the variables listed here.
+
+```yaml
+services:
+  codescape:
+    container_name: codescape
+    hostname: codescape
+    build:                         # any image with cargo, node 22 and, for cuda, nvcc
+      context: .
+      dockerfile: Dockerfile.unified
+      target: development
+    entrypoint: ["/app/codescape/deploy/codescape-entrypoint.sh"]
+    environment:
+      CODESCAPE_SRC: /app/codescape                       # this repository, read-only
+      CODESCAPE_GPU_SRC: /app/crates/visionclaw-gpu       # PTX build sources, read-only
+      CODESCAPE_NODE_MODULES: /app/client/node_modules    # used when client/node_modules is absent
+      CODESCAPE_TARGET_DIR: /codescape-target             # all build output, writable volume
+      CODESCAPE_PTX_DIR: /codescape-target/ptx            # staged by the entrypoint
+      CODESCAPE_DATA_DIR: /data/codescape
+      CODESCAPE_PORT: "4100"
+      CODESCAPE_INGEST_PORT: "4101"
+      CODESCAPE_BIND: 0.0.0.0
+      CODESCAPE_PREFER_CUDA: "1"
+      CODESCAPE_REPO: visionclaw=/repos/visionclaw,agentbox=/repos/agentbox
+      CODESCAPE_EXCLUDES: target/**,node_modules/**,agentbox/**,data/**,logs/**,.dev-inputs/**,archive/**,vircadia-world/**
+      CODESCAPE_PATH_MAP: /home/devuser/workspace/project=/repos/visionclaw:/home/devuser/workspace/project/agentbox=/repos/agentbox
+      CODESCAPE_INGEST_TOKEN_FILE: /run/secrets/codescape-ingest-token
+      CODESCAPE_ASR_URL: ws://nemotron-asr:8000/api/asr-streaming
+      CODESCAPE_TTS_URL: http://pocket-tts:8000
+      CODESCAPE_LOOM_URL: ""                              # optional; empty means unset
+      CODESCAPE_TRUST_PROXY: "1"
+      CODESCAPE_TRUST_PROXY_FROM: visionclaw-server       # the nginx peer's network alias
+      CODESCAPE_PUBLIC_PATH_PREFIX: /codescape
+      RUST_LOG: info
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    secrets:
+      - codescape-ingest-token
+    volumes:
+      - ./codescape:/app/codescape:ro                                 # the submodule
+      - ./crates/visionclaw-gpu:/app/crates/visionclaw-gpu:ro         # PTX build only
+      - ./crates/visionclaw-domain:/app/crates/visionclaw-domain:ro   # visionclaw-gpu's path dependency
+      # Dogfood repositories: source directories only, read-only (see Service).
+      - ./.gitignore:/repos/visionclaw/.gitignore:ro
+      - ./src:/repos/visionclaw/src:ro
+      - ./crates:/repos/visionclaw/crates:ro
+      - ./client/src:/repos/visionclaw/client/src:ro
+      - ./xr-client:/repos/visionclaw/xr-client:ro
+      - ./scripts:/repos/visionclaw/scripts:ro
+      - ./docs:/repos/visionclaw/docs:ro
+      - ./tests:/repos/visionclaw/tests:ro
+      - ./agentbox/.gitignore:/repos/agentbox/.gitignore:ro
+      - ./agentbox/config:/repos/agentbox/config:ro
+      - ./agentbox/services:/repos/agentbox/services:ro
+      - ./agentbox/management-api:/repos/agentbox/management-api:ro
+      - ./agentbox/crates:/repos/agentbox/crates:ro
+      - ./agentbox/lib:/repos/agentbox/lib:ro
+      - ./agentbox/scripts:/repos/agentbox/scripts:ro
+      - ./agentbox/skills:/repos/agentbox/skills:ro
+      - ./agentbox/voice:/repos/agentbox/voice:ro
+      - ./agentbox/tests:/repos/agentbox/tests:ro
+      - ./agentbox/docs:/repos/agentbox/docs:ro
+      # Own caches and state, never shared with another container.
+      - codescape-cargo-cache:/root/.cargo/registry
+      - codescape-cargo-git:/root/.cargo/git
+      - codescape-target:/codescape-target
+      - codescape-data:/data/codescape
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - DAC_READ_SEARCH
+    ports:
+      - "127.0.0.1:4100:4100"      # clients only; 4101 is never published
+    networks:
+      visionclaw_network:
+        aliases:
+          - codescape
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, compute, utility]
+    runtime: nvidia
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:4100/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 900s           # the first start compiles the workspace in release mode
+
+volumes:
+  codescape-cargo-cache:
+  codescape-cargo-git:
+  codescape-target:
+  codescape-data:
+
+secrets:
+  codescape-ingest-token:
+    file: ./secrets/codescape-ingest-token
+```
+
+Compared with the service VisionClaw ran before extraction (`docker-compose.unified.yml` at `cac36a028`): the `crates:/app/crates`, `client/src:/app/client/src` and `scripts:/app/scripts` mounts are replaced by the submodule at `/app/codescape` and the two GPU source directories, and the entrypoint path moves into the submodule.
+
+### What the entrypoint does
+
+1. Exits 2 if `RUVECTOR_PG_CONNINFO` is set.
+2. `CODESCAPE_FEATURES` (`auto` by default: `cuda` when `nvcc` and a device exist; or `cuda`, or anything else for CPU only).
+3. With `cuda`: builds `visionclaw-gpu` through a throwaway wrapper package on the target volume (its sources are read-only) and stages `visionclaw_unified.ptx` and `ptx-build-manifest.txt` into `CODESCAPE_PTX_DIR`. The GPU sources are a build input for the PTX only; they never enter Codescape's Cargo graph (BASELINE I1a, I10). Without them the engine falls back to CPU.
+4. `cargo build --release --locked -p codescape-server` from `CODESCAPE_SRC` into `CODESCAPE_TARGET_DIR`. `--locked` never writes the read-only checkout; the first build fetches `visionclaw-wire` and graphicle into the cargo cache volumes.
+5. Copies `CODESCAPE_SRC/client` to `CODESCAPE_TARGET_DIR/client-build`, links its `node_modules` to the checkout's own or, when absent, `CODESCAPE_NODE_MODULES` (VisionClaw's dev image ships the same pinned packages), and runs `vite build --configLoader runner` there into `CODESCAPE_STATIC_DIR` (default `$CODESCAPE_TARGET_DIR/codescape-dist`). Nothing is written into the linked `node_modules`.
+6. Execs `codescape-server` with the repos, excludes, ports, data and static directories, and the ingest token when set.
+
+`CODESCAPE_SKIP_BUILD=1` skips steps 3 to 5 and runs the last build.
+
 ## Ports
 
 | Port | Purpose | Exposure |
@@ -24,7 +145,7 @@ This repository ships no compose file. The host deployment (VisionClaw) implemen
 
 - A file secret mounted at `/run/secrets/codescape-ingest-token`, named by `CODESCAPE_INGEST_TOKEN_FILE`. VisionClaw's launcher mints it on first use under its `secrets/`.
 - Without the file the ingest listener does not start.
-- The agentbox activity-sink hook (agentbox ADR-2144) reads the same token and posts to `http://codescape:4101/ingest/v1/activity`.
+- The agentbox activity-sink hook ([agentbox ADR-2144](https://github.com/DreamLab-AI/agentbox/blob/feat/codescape-activity-sink/docs/adr/ADR-2144-activity-sink-hook.md)) reads the same token and posts to `http://codescape:4101/ingest/v1/activity`.
 
 ## PTX
 

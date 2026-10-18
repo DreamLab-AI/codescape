@@ -1,0 +1,10 @@
+# Negative-control fixture for tests/isolation.rs: an empty package that only
+# borrows the name of VisionClaw's ontology crate, so the isolation filter has
+# something real to catch. Excluded from the workspace; never published.
+[package]
+name = "visionclaw-ontology"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]

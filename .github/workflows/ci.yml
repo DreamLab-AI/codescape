@@ -1,0 +1,90 @@
+# Codescape CI: the import gate (docs/evidence/import-gate.txt), on every push
+# and pull request.
+#
+# visionclaw-wire 0.1.0 is resolved from crates.io (published 2026-10-18); the
+# committed Cargo.lock carries its checksum, so every cargo step runs --locked.
+# graphicle is a pinned git dependency and is fetched over HTTPS.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  rust:
+    name: rust (default features)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      # Includes crates/codescape-server/tests/isolation.rs (I1, I1a, I8, I10,
+      # I11) and tests/wire_fixture.rs (the client byte fixture).
+      - run: cargo test --workspace --locked
+      - run: cargo doc --workspace --no-deps --locked
+        env:
+          RUSTDOCFLAGS: -Dwarnings
+      # Together, so codescape-collab resolves the locally packaged
+      # codescape-model before either is on crates.io.
+      - run: cargo publish --dry-run --locked -p codescape-model -p codescape-collab
+
+  rust-cuda:
+    name: rust (cuda feature, compile and link only)
+    runs-on: ubuntu-latest
+    # The devel image provides /usr/local/cuda/lib64/stubs/libcuda.so, which
+    # cust_raw's build script (find_cuda_helper) links against. There is no
+    # GPU and no libcuda.so.1 on the runner, so test binaries are built but
+    # never run; device tests are a P2 gate step on real hardware.
+    container: nvidia/cuda:12.9.1-devel-ubuntu24.04
+    env:
+      CUDA_LIBRARY_PATH: /usr/local/cuda
+    steps:
+      - name: system packages
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl git build-essential pkg-config libssl-dev
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: cuda
+      - run: cargo clippy --workspace --all-targets --locked --features codescape-server/cuda -- -D warnings
+      - run: cargo test --workspace --locked --features codescape-server/cuda --no-run
+
+  client:
+    name: client
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      # Includes the import-isolation test (I9) and the decode of the
+      # committed visionclaw-wire byte fixture.
+      - run: npm test
+      - run: npm run build

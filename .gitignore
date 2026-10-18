@@ -2,9 +2,13 @@
 target/
 node_modules/
 client/dist/
+client/.vite/
 
-# CUDA PTX is loaded at runtime from CODESCAPE_PTX_DIR, never committed
+# CUDA PTX is loaded at runtime from CODESCAPE_PTX_DIR, never committed.
+# Exception: the two ABI-parse fixtures the layout tests include_str!; they are
+# never loaded as runtime PTX.
 *.ptx
+!crates/codescape-layout/tests/fixtures/*.ptx
 
 # Local secrets (ingest token and similar)
 secrets/

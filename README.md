@@ -16,10 +16,6 @@ knowledge-work system it was born beside ([VisionClaw](https://github.com/DreamL
 it reads source trees, never a knowledge corpus, and that separation is a
 tested property (see [Security posture](#security-posture)).
 
-> **Repository state.** This is the repository skeleton. The crates and the
-> client are imported from VisionClaw in the next change (ADR-0001). Until
-> then the commands below describe the imported tree.
-
 ## Architecture
 
 ```mermaid
@@ -89,7 +85,7 @@ cargo run --release -p codescape-server -- \
   --data-dir ./.codescape \
   --repo myrepo=/path/to/myrepo
 # open http://127.0.0.1:4100/  (build the client first: see client/README.md,
-# then add --static-dir client/dist)
+# then add --static-dir target/codescape-dist)
 ```
 
 `--repo` is repeatable (`--repo a=/src/a --repo b=/src/b`). The default data
@@ -162,7 +158,7 @@ Every flag has a `CODESCAPE_*` environment variable. The main ones:
 | `CODESCAPE_PATH_MAP` | none | `FROM=TO[:FROM=TO...]`, rewrites the paths agents report to the paths Codescape reads |
 | `CODESCAPE_PREFER_CUDA` | `true` | Use the CUDA engine when compiled in and usable |
 | `CODESCAPE_CUDA_DEVICE` | best free | Device ordinal (read by codescape-layout); set `CUDA_DEVICE_ORDER=PCI_BUS_ID` |
-| `CODESCAPE_PTX_DIR` | none | Directory holding `visionclaw_unified.ptx` and `ptx-build-manifest.txt`; checked for ABI and provenance at load. Arrives with the import (ADR-0001) |
+| `CODESCAPE_PTX_DIR` | none | Directory holding `visionclaw_unified.ptx` and `ptx-build-manifest.txt`; checked for ABI and provenance at load (ADR-0001) |
 | `CODESCAPE_TRUST_PROXY` | `false` | Honour `X-Forwarded-*` from a reverse proxy |
 | `CODESCAPE_TRUST_PROXY_FROM` | any peer | Peers (IPs, CIDRs, hostnames) whose forwarded headers are trusted; requires `TRUST_PROXY` |
 | `CODESCAPE_PUBLIC_PATH_PREFIX` | empty | Prefix the proxy strips, such as `/codescape` |
@@ -188,7 +184,9 @@ P6 auth flags).
 - **Isolation from knowledge-work systems** is enforced in layers
   ([docs/BASELINE-codescape.md](docs/BASELINE-codescape.md)):
   1. the resolved build graph contains no ontology, memory, vault, Oxigraph,
-     Postgres, RuVector, Solid or VisionClaw-server crate (test);
+     Postgres, RuVector, Solid or VisionClaw-server crate, no `visionclaw-*`
+     crate but `visionclaw-wire`, nothing from the VisionClaw repository, and
+     no AGPL crate under a permissive one (tests);
   2. the server exits 2 at boot if `RUVECTOR_PG_CONNINFO` is set (test);
   3. the client imports nothing outside its own tree and an allowlist of
      packages (test);
@@ -198,6 +196,18 @@ P6 auth flags).
      and, from P6, the voice-intent endpoint (code; an egress test is open).
 - **No signing keys.** Agent dispatch, when it lands, is a kind-31402 event
   signed in the browser and relayed, never signed by the server.
+
+## Building and testing
+
+```bash
+cargo test --workspace --locked                  # CPU only; incl. the isolation suite
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace --features codescape-server/cuda   # needs a CUDA toolkit to link, no device
+
+cd client && npm ci && npm run typecheck && npm test && npm run build
+```
+
+`AGENTS.md` has the full list. CI (`.github/workflows/ci.yml`) runs all of it.
 
 ## Status
 
@@ -219,12 +229,14 @@ and 13.7 s, both attributed to host-side work per step. Evidence:
 
 ## Provenance
 
-Codescape was designed and built inside VisionClaw under ADR-2143 ("Codescape
+Codescape was designed and built inside VisionClaw under [ADR-2143](https://github.com/DreamLab-AI/VisionClaw/blob/main/docs/adr/ADR-2143-codescape-section-separate-workspace-and-port.md) ("Codescape
 is a separate section with its own Cargo workspace, its own port and a tested
 isolation boundary") and its amendments A1 to A4, on the `feat/codescape`
-branch from commit `b63068e3d`. It was extracted into this repository with a
-fresh history; [ADR-0001](docs/adr/ADR-0001-extraction-from-visionclaw.md)
-records why and how.
+branch from commit `b63068e3d`. It was imported into this repository with a
+fresh history from VisionClaw [`cac36a028`](https://github.com/DreamLab-AI/VisionClaw/commit/cac36a028) on `main` (source range
+`b63068e3d^..cac36a028`); [ADR-0001](docs/adr/ADR-0001-extraction-from-visionclaw.md)
+records why and how, and [docs/evidence/import-gate.txt](docs/evidence/import-gate.txt)
+holds the import gate output.
 
 The code-graph engine is [graphicle](https://github.com/Graphicle-AI/graphicle),
 a Rust port of Graphify, licensed Apache-2.0 and used unmodified as a pinned git
@@ -234,11 +246,11 @@ dependency (rev `003f93605d895ed69f0cf06690dd296474385b99`).
 
 - [VisionClaw](https://github.com/DreamLab-AI/VisionClaw): the knowledge-graph
   system Codescape came from; hosts the compose service and nginx route, and
-  publishes `visionclaw-wire`.
+  publishes [`visionclaw-wire`](https://crates.io/crates/visionclaw-wire).
 - [VisionFlow](https://github.com/DreamLab-AI/VisionFlow): the estate's
   coordination platform.
 - [agentbox](https://github.com/DreamLab-AI/agentbox): the agent container.
-  ADR-2144 (activity-sink hook, branch `feat/codescape-activity-sink`)
+  [ADR-2144](https://github.com/DreamLab-AI/agentbox/blob/feat/codescape-activity-sink/docs/adr/ADR-2144-activity-sink-hook.md) (activity-sink hook, branch `feat/codescape-activity-sink`)
   delivers agent activity to `:4101`.
 
 ## Licence
