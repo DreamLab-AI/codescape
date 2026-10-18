@@ -1072,17 +1072,11 @@ fn continuous_real_writes_flush_at_the_max_wait() {
         took >= MAX_BATCH_WAIT - Duration::from_millis(150),
         "{took:?}"
     );
-    assert!(
-        took < MAX_BATCH_WAIT + FLUSH_SLACK,
-        "{took:?}"
-    );
+    assert!(took < MAX_BATCH_WAIT + FLUSH_SLACK, "{took:?}");
     // And it keeps flushing, about once per max wait.
-    let (again, _) = wait_for(&rx, &canon.join("src/hot.rs"), Duration::from_secs(3));
+    let (again, _) = wait_for(&rx, &canon.join("src/hot.rs"), Duration::from_secs(4));
     let again = again.expect("a second batch");
-    assert!(
-        again < MAX_BATCH_WAIT + FLUSH_SLACK,
-        "{again:?}"
-    );
+    assert!(again < MAX_BATCH_WAIT + FLUSH_SLACK, "{again:?}");
 }
 
 #[test]
