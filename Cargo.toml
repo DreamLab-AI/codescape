@@ -1,0 +1,46 @@
+# Codescape Cargo workspace.
+#
+# The five members arrive with the code import from VisionClaw (ADR-0001);
+# until then this file is a stub and cargo will not resolve it.
+#
+# Licence split (LICENSE, ADR-0001):
+#   [workspace.package] sets the default, AGPL-3.0-only, which
+#   codescape-ingest, codescape-layout and codescape-server inherit with
+#   `license.workspace = true`.
+#   codescape-model and codescape-collab override it in their own manifests:
+#       license = "MIT OR Apache-2.0"
+#       publish = true   (crates.io)
+#   A permissive crate never depends on an AGPL crate.
+#
+# graphicle enables serde_json `arbitrary_precision` and `preserve_order` and
+# pins exact smallvec and unicode-normalization versions, so this workspace
+# keeps its own Cargo.lock. Never merge it into another workspace.
+[workspace]
+resolver = "2"
+members = [
+    "crates/codescape-model",
+    "crates/codescape-collab",
+    "crates/codescape-ingest",
+    "crates/codescape-layout",
+    "crates/codescape-server",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.94"
+license = "AGPL-3.0-only"
+authors = ["jjohare <github@thedreamlab.uk>"]
+repository = "https://github.com/DreamLab-AI/codescape"
+homepage = "https://github.com/DreamLab-AI/codescape"
+publish = false
+
+# [workspace.dependencies] arrives with the import. It keeps:
+#   graphicle = { git = "https://github.com/Graphicle-AI/graphicle",
+#                 rev = "003f93605d895ed69f0cf06690dd296474385b99",
+#                 default-features = false }
+#   tree-sitter = "=0.25.10"
+#   visionclaw-wire (crates.io, MIT OR Apache-2.0), replacing the #[path]
+#   include of VisionClaw's wire fixtures.
+# The `cuda` feature of codescape-layout no longer depends on visionclaw-gpu;
+# the PTX is loaded at runtime from CODESCAPE_PTX_DIR.

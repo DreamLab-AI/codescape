@@ -1,0 +1,15 @@
+# Build output
+target/
+node_modules/
+client/dist/
+
+# CUDA PTX is loaded at runtime from CODESCAPE_PTX_DIR, never committed
+*.ptx
+
+# Local secrets (ingest token and similar)
+secrets/
+
+# Local data directory and the server's persisted state
+.codescape/
+ids.bin
+positions.bin

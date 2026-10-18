@@ -1,0 +1,29 @@
+Codescape is licensed per directory. Copyright 2026 DreamLab AI.
+
+  Path                       Licence                  Full text
+  -------------------------  -----------------------  ------------------------------
+  crates/codescape-model/    MIT OR Apache-2.0        LICENSE-MIT, LICENSE-APACHE
+  crates/codescape-collab/   MIT OR Apache-2.0        LICENSE-MIT, LICENSE-APACHE
+  crates/codescape-ingest/   AGPL-3.0-only            LICENSE-AGPL
+  crates/codescape-layout/   AGPL-3.0-only            LICENSE-AGPL
+  crates/codescape-server/   AGPL-3.0-only            LICENSE-AGPL
+  client/                    AGPL-3.0-only            LICENSE-AGPL
+  everything else            AGPL-3.0-only            LICENSE-AGPL
+
+Each crate's Cargo.toml `license` field is authoritative for that crate. The
+workspace default is AGPL-3.0-only; codescape-model and codescape-collab
+override it with "MIT OR Apache-2.0" so they can be published and reused
+without the copyleft.
+
+Dependency rule: a permissively licensed crate never depends on an
+AGPL-3.0-only crate. The two permissive crates depend only on each other
+(collab on model) and on permissively licensed third-party crates.
+
+Third-party code:
+  graphicle (https://github.com/Graphicle-AI/graphicle), Apache-2.0, is a
+  pinned git dependency of codescape-ingest. It is not vendored.
+  visionclaw-wire (MIT OR Apache-2.0), published from VisionClaw, supplies
+  the frozen 52-byte position record and its fixtures.
+
+AGPL-3.0-only, section 13: if you run a modified codescape-server for users
+over a network, you must offer them the corresponding source.
