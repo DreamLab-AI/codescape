@@ -113,7 +113,7 @@ build_client() {
   fi
   log "building the Codescape client bundle into $CS_DIST (node_modules: $mods)"
   rm -rf "$build" && mkdir -p "$build"
-  (cd "$src" && tar --exclude=./node_modules --exclude=./.vite -cf - .) | (cd "$build" && tar -xf -)
+  (cd "$src" && tar --exclude=./node_modules --exclude=./.vite -cf - .) | (cd "$build" && tar --no-same-owner -xf -) # cap_drop ALL: no CAP_CHOWN
   chmod -R u+w "$build" # writable even when the checkout is not
   ln -s "$mods" "$build/node_modules"
   (cd "$build" && HOME=/tmp CODESCAPE_DIST="$CS_DIST" CODESCAPE_VITE_CACHE="$build/.vite" \
