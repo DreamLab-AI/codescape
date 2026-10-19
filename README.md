@@ -34,6 +34,51 @@ tested property (see [Security posture](#security-posture)).
 
 ---
 
+<div align="center">
+
+![Codescape at the symbol tier: 29,819 nodes and 77,925 edges of the VisionClaw and agentbox source trees, laid out on the GPU and coloured by Leiden community](docs/screenshots/00-hero-l2-galaxy.png)
+
+*The VisionClaw and agentbox source trees at the symbol tier (L2): 29,819 nodes, 77,925 edges, CUDA layout on an RTX A6000. The Rust backend is the large mass on the left and the TypeScript client the smaller one on the right.*
+
+</div>
+
+---
+
+## See it
+Captured from the live desktop client at 1920×1080 through browser automation, against the Codescape service running on the CUDA engine. The scene is the real VisionClaw and agentbox checkouts, not a demo dataset.
+
+### Three levels of detail
+The client shows one tier at a time: leave it on `auto` or pin L0, L1 or L2 from the tier panel. L0 shows directories, L1 files, L2 symbols.
+
+| L0, directories | L1, files |
+|---|---|
+| ![L0: top-level directories as labelled hulls](docs/screenshots/01-l0-directories.png) | ![L1: files as a force-directed graph of dependency edges](docs/screenshots/02-l1-file-graph.png) |
+
+![L2: every function, type and constant as a point, clustered and coloured by community](docs/screenshots/03-l2-symbols.png)
+
+### Filters and communities
+Language buttons, `hide tests` and the community chips work on the live scene. Below, Rust only with tests hidden removes the TypeScript client entirely, and community 72 isolates to one cluster of WebSocket and frame-dispatch code.
+
+| Rust only, tests hidden | Community 72 isolated |
+|---|---|
+| ![Language and test filters applied at L2](docs/screenshots/04-filter-rust-no-tests.png) | ![One Leiden community isolated](docs/screenshots/06-community-isolate.png) |
+
+### Typed commands
+The command box takes the same grammar as push-to-talk ([Voice and typed commands](#voice-and-typed-commands)). Names are resolved fuzzily and the ranked candidates are shown, so a near miss is visible rather than silently wrong.
+
+| `focus on whelk` | `callers of apply_delta` |
+|---|---|
+| ![focus resolves to whelk_blocker with ranked alternatives](docs/screenshots/05-command-focus.png) | ![callers query resolves to apply_decision and draws the call edges](docs/screenshots/07-command-callers.png) |
+
+### Blast radius and the timeline
+`what is affected by whelk_blocker` highlights the 22 nodes within three hops. The inspector (top right) shows the symbol, its file and line span and its community, and `rewind 5 minutes` drives the timeline bar and summarises the window.
+
+![Blast radius of whelk_blocker at L2 with the node inspector and the rewound timeline](docs/screenshots/08-blast-radius-timeline.png)
+
+Not shown: agent presence (an actor appearing at the node it touches), voice and the XR client. Those need the hook token, the speech services and a headset respectively, and are described in [Status & honesty](#status--honesty).
+
+---
+
 ## Where Codescape sits
 
 Codescape is one section of the [VisionFlow](https://github.com/DreamLab-AI/VisionFlow) mesh. It is a code-work tool: it reads source trees and never a knowledge corpus. It was born inside VisionClaw and is now its own repository ([ADR-0001](docs/adr/ADR-0001-extraction-from-visionclaw.md)).
