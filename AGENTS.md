@@ -78,6 +78,10 @@ The client wire fixture `client/src/__tests__/fixtures/v5_frame.bin` is generate
 - **Forbidden routes.** Knowledge routes (`/api/memory-cloud/*`, `/api/analytics/*`, `/api/graph/fold`, `/api/canary/*`) return 404 and stay that way.
 - UK English in prose and docs. No em-dashes in prose.
 
+## Estate
+
+Codescape is a section of the [VisionFlow](https://github.com/DreamLab-AI/VisionFlow) mesh; VisionFlow owns the ecosystem map, compatibility matrix and status ledger, so cross-repo claims are recorded there, not here. The host deployment is [VisionClaw](https://github.com/DreamLab-AI/VisionClaw), which mounts this repository as the `codescape/` submodule. Sibling links and the wiring: [README, Where Codescape sits](README.md#where-codescape-sits). Documentation index: [`docs/README.md`](docs/README.md).
+
 ## Memory
 
 Durable agent memory is the shared RuVector store, reached only through the memory MCP tools, namespace `project-state` (prefix keys with `codescape-`). Search it before re-deciding something; store durable lessons afterwards.

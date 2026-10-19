@@ -1,7 +1,23 @@
+<div align="center">
+
 # Codescape
 
-Humans and agents working together by voice around a near-real-time 3D view
-of a codebase.
+### Code-graph section of the Dynamic Agentic Mesh
+
+[![Licence](https://img.shields.io/badge/Licence-AGPL--3.0%20%2B%20MIT%2FApache--2.0%20crates-blue?style=flat-square)](LICENSE)
+[![Rust](https://img.shields.io/badge/Rust-1.94%2B-f74c00?style=flat-square&logo=rust)](Cargo.toml)
+[![Crates](https://img.shields.io/badge/Crates-5%20(2%20on%20crates.io)-8b5cf6?style=flat-square)](#crates)
+[![Status](https://img.shields.io/badge/Status-v0.1.0%20early-10b981?style=flat-square)](#status--honesty)
+
+**Humans and agents work in the same near-real-time 3D view of a codebase, and you steer it by voice.**
+
+**Maintainer**: [John O'Hare](https://github.com/jjohare)
+
+[Architecture](#architecture) · [Crates](#crates) · [Quick start](#quick-start) · [Ecosystem](#where-codescape-sits) · [Status](#status--honesty) · [Docs](docs/README.md)
+
+</div>
+
+---
 
 Codescape extracts a code graph from one or more repositories, lays it out in
 3D on the GPU (or the CPU), and streams it to a desktop browser client and a
@@ -16,8 +32,25 @@ knowledge-work system it was born beside ([VisionClaw](https://github.com/DreamL
 it reads source trees, never a knowledge corpus, and that separation is a
 tested property (see [Security posture](#security-posture)).
 
-## Architecture
+---
 
+## Where Codescape sits
+
+Codescape is one section of the [VisionFlow](https://github.com/DreamLab-AI/VisionFlow) mesh. It is a code-work tool: it reads source trees and never a knowledge corpus. It was born inside VisionClaw and is now its own repository ([ADR-0001](docs/adr/ADR-0001-extraction-from-visionclaw.md)).
+
+| Sibling | Relationship |
+|---|---|
+| [VisionFlow](https://github.com/DreamLab-AI/VisionFlow) | The canon: ecosystem map, compatibility matrix and honest status ledger. |
+| [VisionClaw](https://github.com/DreamLab-AI/VisionClaw) | The host deployment. It mounts this repository as the `codescape/` submodule, owns the compose service and nginx route, builds the CUDA PTX, and publishes [`visionclaw-wire`](https://crates.io/crates/visionclaw-wire), the frozen position wire. Its Godot XR client connects through `/wss`. |
+| [agentbox](https://github.com/DreamLab-AI/agentbox) | The agent container. The activity-sink hook ([ADR-2144](https://github.com/DreamLab-AI/agentbox/blob/feat/codescape-activity-sink/docs/adr/ADR-2144-activity-sink-hook.md), branch `feat/codescape-activity-sink`) posts agent activity to `:4101`. |
+| [loom](https://github.com/DreamLab-AI/loom) | Optional out-of-grammar command parse (`CODESCAPE_LOOM_URL`); voice runs without it. |
+| [graphicle](https://github.com/Graphicle-AI/graphicle) | The code-graph extraction engine, used unmodified as a pinned git dependency. |
+
+Standalone use needs none of these: the CPU layout engine, the desktop client and the two permissive crates build and run on their own (see [Quick start](#quick-start)).
+
+---
+
+## Architecture
 ```mermaid
 flowchart LR
   subgraph sources[Repositories, read-only]
@@ -62,8 +95,10 @@ same bytes VisionClaw's clients already decode, so the XR client needs no
 change. Topology, selections, captions and query results go out as JSON on
 `/ws/events`. There is no Codescape-specific wire format.
 
-## Crates
 
+---
+
+## Crates
 | Crate | Role | Licence | Publishable |
 |---|---|---|---|
 | `codescape-model` | Pure types: nodes, edges, interned 26-bit wire ids, snapshots, deltas, LOD tiers, community matching, V3 record mapping. No I/O. | MIT OR Apache-2.0 | yes |
@@ -75,8 +110,10 @@ change. Topology, selections, captions and query results go out as JSON on
 
 A permissive crate never depends on an AGPL crate. See [LICENSE](LICENSE).
 
-## Quick start
 
+---
+
+## Quick start
 ### Standalone, CPU layout
 
 ```bash
@@ -116,8 +153,10 @@ CODESCAPE=1 ./scripts/launch.sh up dev
 # then browse http://<host>:3001/codescape/
 ```
 
-## Voice and typed commands
 
+---
+
+## Voice and typed commands
 Push-to-talk holds a single floor. Speech goes to nemotron-asr; the transcript
 is parsed by a deterministic grammar; only an utterance the grammar cannot
 parse goes to the Loom door, whose output must pass the command schema or it
@@ -141,8 +180,10 @@ is spoken back and never executed. Typed commands use the same grammar.
 The goldens in `crates/codescape-collab/tests/grammar_golden.rs` are the
 authoritative phrase list.
 
-## Configuration
 
+---
+
+## Configuration
 Every flag has a `CODESCAPE_*` environment variable. The main ones:
 
 | Variable | Default | Purpose |
@@ -172,8 +213,10 @@ Every flag has a `CODESCAPE_*` environment variable. The main ones:
 `TTS_VOICE`, `PUBLIC_ORIGIN`, `REEXTRACT`, `INCLUDE_DOCS`, `LOG_LEVEL` and the
 P6 auth flags).
 
-## Security posture
 
+---
+
+## Security posture
 - **Authentication is open until P6.** `/api/health` reports `"auth":"open"`.
   NIP-98 on every route and a pubkey allowlist land in P6. Until then, do not
   expose `:4100` to a network you do not trust. Under VisionClaw the port is
@@ -197,8 +240,10 @@ P6 auth flags).
 - **No signing keys.** Agent dispatch, when it lands, is a kind-31402 event
   signed in the browser and relayed, never signed by the server.
 
-## Building and testing
 
+---
+
+## Building and testing
 ```bash
 cargo test --workspace --locked                  # CPU only; incl. the isolation suite
 cargo clippy --workspace --all-targets -- -D warnings
@@ -209,8 +254,10 @@ cd client && npm ci && npm run typecheck && npm test && npm run build
 
 `AGENTS.md` has the full list. CI (`.github/workflows/ci.yml`) runs all of it.
 
-## Status
 
+---
+
+## Status & honesty
 | Phase | State |
 |---|---|
 | P0 Spine | landed |
@@ -227,8 +274,16 @@ The 100k-node targets (GPU step 5 ms, cold settle 10 s) are missed at 7.8 ms
 and 13.7 s, both attributed to host-side work per step. Evidence:
 [docs/evidence/README.md](docs/evidence/README.md).
 
-## Provenance
+Things to know before relying on it:
 
+- The CUDA layout engine drives VisionClaw's `visionclaw_unified` PTX (a 53-field `SimParams` mirror and the `thrust_sort_key_value` contract). Without that PTX, the CPU Barnes-Hut engine runs.
+- The deploy contract ([deploy/README.md](deploy/README.md)) is VisionClaw-shaped. Another host writes its own compose and proxy configuration.
+- This is v0.1.0 with a short history: the repository was imported with fresh history ([Provenance](#provenance)).
+
+
+---
+
+## Provenance
 Codescape was designed and built inside VisionClaw under [ADR-2143](https://github.com/DreamLab-AI/VisionClaw/blob/main/docs/adr/ADR-2143-codescape-section-separate-workspace-and-port.md) ("Codescape
 is a separate section with its own Cargo workspace, its own port and a tested
 isolation boundary") and its amendments A1 to A4, on the `feat/codescape`
@@ -242,18 +297,27 @@ The code-graph engine is [graphicle](https://github.com/Graphicle-AI/graphicle),
 a Rust port of Graphify, licensed Apache-2.0 and used unmodified as a pinned git
 dependency (rev `003f93605d895ed69f0cf06690dd296474385b99`).
 
-## Related
 
-- [VisionClaw](https://github.com/DreamLab-AI/VisionClaw): the knowledge-graph
-  system Codescape came from; hosts the compose service and nginx route, and
-  publishes [`visionclaw-wire`](https://crates.io/crates/visionclaw-wire).
-- [VisionFlow](https://github.com/DreamLab-AI/VisionFlow): the estate's
-  coordination platform.
-- [agentbox](https://github.com/DreamLab-AI/agentbox): the agent container.
-  [ADR-2144](https://github.com/DreamLab-AI/agentbox/blob/feat/codescape-activity-sink/docs/adr/ADR-2144-activity-sink-hook.md) (activity-sink hook, branch `feat/codescape-activity-sink`)
-  delivers agent activity to `:4101`.
+---
+
+## Documentation
+Index: [docs/README.md](docs/README.md) · governing document: [BASELINE-codescape.md](docs/BASELINE-codescape.md) · decisions: [docs/adr](docs/adr/README.md) · evidence: [docs/evidence](docs/evidence/README.md) · deployment contract: [deploy/README.md](deploy/README.md) · desktop client: [client/README.md](client/README.md) · agent instructions: [AGENTS.md](AGENTS.md).
+
+---
 
 ## Licence
 
 Per directory; see [LICENSE](LICENSE). `codescape-model` and `codescape-collab`
 are MIT OR Apache-2.0; everything else is AGPL-3.0-only.
+
+Corpus and data terms do not apply: Codescape reads source trees only.
+
+---
+
+<div align="center">
+
+**Part of [VisionFlow](https://github.com/DreamLab-AI/VisionFlow)**: Codescape shows the code; [VisionClaw](https://github.com/DreamLab-AI/VisionClaw) hosts it and reasons over the knowledge corpus; [agentbox](https://github.com/DreamLab-AI/agentbox) runs the agents whose activity appears in the scene; [loom](https://github.com/DreamLab-AI/loom) grounds the model behind the door; [solid-pod-rs](https://github.com/DreamLab-AI/solid-pod-rs) stores sovereignly; the [forum](https://github.com/DreamLab-AI/nostr-rust-forum) and [website](https://github.com/DreamLab-AI/dreamlab-ai-website) provide governance and operator surfaces.
+
+[Documentation](docs/README.md) · [Issues](https://github.com/DreamLab-AI/codescape/issues) · [Evidence](docs/evidence/README.md)
+
+</div>
