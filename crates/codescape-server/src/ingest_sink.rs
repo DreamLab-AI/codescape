@@ -58,11 +58,18 @@ impl EngineSink {
         let mut out: BTreeMap<usize, Vec<String>> = BTreeMap::new();
         'paths: for p in mapped {
             if p.starts_with('/') {
+                // Roots may nest (an estate root with each member repository
+                // also served on its own), so a path under several roots is
+                // delivered to each of them.
+                let mut hit = false;
                 for (i, r) in self.st.repos.iter().enumerate() {
                     if let Some(rel) = r.relative(p) {
                         out.entry(i).or_default().push(rel);
-                        continue 'paths;
+                        hit = true;
                     }
+                }
+                if hit {
+                    continue 'paths;
                 }
                 // Not under any root: suffix-match against known files.
                 for (i, r) in self.st.repos.iter().enumerate() {

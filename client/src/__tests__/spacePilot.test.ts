@@ -75,16 +75,17 @@ describe('camera motion mapping', () => {
    * Direction contract shared with VisionClaw's SpacePilotController (camera
    * mode): the same puck gesture must move the camera the same way in both
    * apps. Values after the driver's sign convention (rx, ry negated).
-   *   VisionClaw: theta -= ry; phi += rx; camera += -tz forward; pan +tx, +ty.
+   *   theta -= ry; phi += rx; push away (-ty) dollies in; lift (-tz) pans up; +tx pans right.
    */
   const table: Array<[string, Partial<typeof rest>, (d: ReturnType<typeof cameraDelta>) => boolean]> = [
     ['sideways tilt +ry orbits left (theta decreases)', { ry: 350 }, (d) => d.azimuth < 0],
     ['twist +rz orbits the same way as +ry', { rz: 350 }, (d) => d.azimuth < 0],
     ['forward tilt +rx orbits up (phi increases)', { rx: 350 }, (d) => d.elevation > 0],
-    ['push +tz moves closer', { tz: 350 }, (d) => d.dollyFactor < 1],
-    ['pull -tz moves away', { tz: -350 }, (d) => d.dollyFactor > 1],
+    ['push away -ty moves closer', { ty: -350 }, (d) => d.dollyFactor < 1],
+    ['pull back +ty moves away', { ty: 350 }, (d) => d.dollyFactor > 1],
     ['slide right +tx pans right', { tx: 350 }, (d) => d.panRight > 0],
-    ['slide up +ty pans up', { ty: 350 }, (d) => d.panUp > 0],
+    ['lift -tz pans up', { tz: -350 }, (d) => d.panUp > 0],
+    ['press down +tz pans down', { tz: 350 }, (d) => d.panUp < 0],
   ];
   for (const [name, input, check] of table) {
     it(name, () => {
@@ -93,7 +94,7 @@ describe('camera motion mapping', () => {
   }
 
   it('clamps a stalled frame and combines yaw sources', () => {
-    const push = cameraDelta({ ...rest, tz: 350 }, 1);
+    const push = cameraDelta({ ...rest, ty: -350 }, 1);
     expect(push.dollyFactor).toBeCloseTo(Math.exp(-DEFAULT_MOTION.dollyRate * 0.1), 6);
     const both = cameraDelta({ ...rest, ry: 350, rz: 350 }, 0.1);
     const one = cameraDelta({ ...rest, ry: 350 }, 0.1);
@@ -102,8 +103,8 @@ describe('camera motion mapping', () => {
   });
 
   it('honours axis inversion', () => {
-    const cfg = { ...DEFAULT_MOTION, invert: { ...DEFAULT_MOTION.invert, tz: true } };
-    const d = cameraDelta({ ...rest, tz: 350 }, 0.1, cfg);
+    const cfg = { ...DEFAULT_MOTION, invert: { ...DEFAULT_MOTION.invert, ty: true } };
+    const d = cameraDelta({ ...rest, ty: -350 }, 0.1, cfg);
     expect(d.dollyFactor).toBeGreaterThan(1);
   });
 });

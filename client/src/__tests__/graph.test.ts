@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyDelta, buildModel, communityHue, kHop, looksLikeTest } from '../graph';
+import { applyDelta, buildModel, communityHue, kHop, looksLikeTest, topDir } from '../graph';
 import { edge, node, smallSnapshot } from './fixtures';
 
 describe('graph model', () => {
@@ -13,6 +13,20 @@ describe('graph model', () => {
     expect(m.isTest[m.index.get(11)!]).toBe(1);
     expect(m.langs).toEqual(['rust']);
     expect(m.communities).toEqual([1, 2]);
+  });
+
+  it('assigns every node a top-level root, inheriting through parents', () => {
+    const m = buildModel(smallSnapshot());
+    // Fixture L0 nodes have no path, so the root is the label; files and symbols use their path.
+    expect(m.roots).toEqual(['n1', 'src', 'tests']);
+    expect(m.roots[m.root[m.index.get(10)!]]).toBe('src');
+    expect(m.roots[m.root[m.index.get(11)!]]).toBe('tests');
+    // The fixture gives symbol 110 the path src/f11.rs, so it follows its path, not its parent file.
+    expect(m.roots[m.root[m.index.get(110)!]]).toBe('src');
+    const inherited = buildModel({ ...smallSnapshot(), nodes: [...smallSnapshot().nodes, node(120, 'l2', 11, { path: null })] });
+    expect(inherited.roots[inherited.root[inherited.index.get(120)!]]).toBe('tests');
+    expect(topDir(node(5, 'l0', 0, { path: 'loom' }))).toBe('loom');
+    expect(topDir(node(6, 'l2', 5, { path: null })).length).toBe(0);
   });
 
   it('separates calls and lifts symbol imports to their files', () => {

@@ -6,6 +6,7 @@ import { Captions } from './ui/Captions';
 import { CommandPalette } from './ui/CommandPalette';
 import { Hud, Inspector } from './ui/Hud';
 import { Legend } from './ui/Legend';
+import { Repos } from './ui/Repos';
 import { PttButton } from './ui/PttButton';
 import { SpacePilotButton } from './ui/SpacePilotButton';
 import { Timeline } from './ui/Timeline';
@@ -49,6 +50,7 @@ function Shell({ session }: { session: Session }) {
           <Hud session={session} />
           <Inspector />
           <Legend />
+          <Repos />
           <CommandPalette session={session} />
           <div className="cs-bottom">
             <Captions />

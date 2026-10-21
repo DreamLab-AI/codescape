@@ -112,6 +112,10 @@ pub enum ServerEvent {
         edges: usize,
         /// `cpu` or `cuda`.
         engine: String,
+        /// Every scene this server serves, the current one included, in
+        /// configuration order (the first is the default scene).
+        #[serde(default)]
+        repos: Vec<String>,
         /// Server version.
         version: String,
     },

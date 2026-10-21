@@ -180,7 +180,7 @@ export class FrameState {
     const sel = s.selection !== null ? (model.index.get(s.selection) ?? -1) : -1;
     const hov = s.hover !== null ? (model.index.get(s.hover) ?? -1) : -1;
     const timelineT = s.timeline.mode === 'live' ? null : s.timeline.t;
-    const stateKey = `${s.tierMode}|${s.currentTier}|${s.modelVersion}|${sel}|${hov}|${s.focusHops}|${s.highlight ? s.highlight.ids.length + ':' + s.highlight.command : ''}|${s.filter.langs.join(',')}|${s.filter.community}|${s.filter.hideTests}|${timelineT === null ? 'live' : Math.round(timelineT / 250)}`;
+    const stateKey = `${s.tierMode}|${s.currentTier}|${s.modelVersion}|${sel}|${hov}|${s.focusHops}|${s.highlight ? s.highlight.ids.length + ':' + s.highlight.command : ''}|${s.filter.langs.join(',')}|${s.filter.community}|${s.filter.hideTests}|${s.filter.hiddenRoots.join(',')}|${timelineT === null ? 'live' : Math.round(timelineT / 250)}`;
     if (stateKey !== this.lastStateKey) {
       this.lastStateKey = stateKey;
       this.selectedIndex = sel;
@@ -200,12 +200,18 @@ export class FrameState {
       this.hasFocus = this.hop.size > 0;
       const langs = s.filter.langs;
       const nodes = model.snapshot.nodes;
+      const hiddenRoot = new Uint8Array(model.roots.length);
+      for (const name of s.filter.hiddenRoots) {
+        const k = model.roots.indexOf(name);
+        if (k >= 0) hiddenRoot[k] = 1;
+      }
       for (let i = 0; i < n; i++) {
         let vis = 1;
         const nd = nodes[i];
         if (langs.length && model.tier[i] !== 0 && !langs.includes(nd.lang)) vis = 0;
         if (s.filter.community !== null && model.tier[i] !== 0 && buffers.community[i] !== s.filter.community) vis = 0;
         if (s.filter.hideTests && model.isTest[i]) vis = 0;
+        if (model.root[i] >= 0 && hiddenRoot[model.root[i]]) vis = 0;
         if (timelineT !== null) {
           const added = s.addedAt[nd.id];
           if (added !== undefined && added > timelineT) vis = 0;

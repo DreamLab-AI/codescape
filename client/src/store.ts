@@ -45,6 +45,8 @@ export interface Filter {
   /** Isolated community, or null for all. */
   community: number | null;
   hideTests: boolean;
+  /** Top-level directories (repositories in an estate scene) hidden from the scene. */
+  hiddenRoots: string[];
 }
 
 export type TimelineMode = 'live' | 'paused' | 'replay';
@@ -128,7 +130,7 @@ export function initialState(opts: { demo: boolean; server: string }): CsState {
     history: [],
     focusHops: 2,
     highlight: null,
-    filter: { langs: [], community: null, hideTests: false },
+    filter: { langs: [], community: null, hideTests: false, hiddenRoots: [] },
     tierMode: 'auto',
     currentTier: 'l0',
     actors: {},

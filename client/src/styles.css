@@ -42,6 +42,19 @@ code, .cs-mono { font-family: var(--mono); font-size: 12.5px; }
 .cs-insp-label { font-weight: 700; font-size: 16px; word-break: break-all; }
 
 .cs-legend { right: 14px; bottom: 120px; width: 300px; max-height: 52vh; overflow: auto; }
+
+.cs-repos { left: 14px; bottom: 120px; width: 260px; max-height: 44vh; overflow: auto; }
+.cs-repos.cs-folded { max-height: none; overflow: hidden; padding-bottom: 8px; }
+.cs-fold { width: 100%; display: flex; justify-content: space-between; align-items: center; background: none; border: none; padding: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); cursor: pointer; }
+.cs-fold:hover { color: var(--fg); }
+.cs-repo-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.cs-repo-list label { display: flex; gap: 7px; align-items: center; cursor: pointer; }
+.cs-repo-list label.cs-off { color: var(--dim); }
+.cs-repo-list .cs-count { margin-left: auto; font-family: var(--mono); font-size: 11.5px; color: var(--dim); }
+.cs-scenes { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.cs-scenes a { font-size: 12px; color: var(--accent); text-decoration: none; border: 1px solid var(--panel-border); border-radius: 6px; padding: 1px 6px; }
+.cs-scenes a.cs-on { border-color: var(--accent); background: rgba(255, 210, 122, 0.18); }
+.cs-scenes a:hover { border-color: var(--accent); }
 .cs-section { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); margin: 8px 0 4px; display: flex; justify-content: space-between; align-items: center; }
 .cs-section:first-child { margin-top: 0; }
 .cs-row { display: flex; gap: 5px; }

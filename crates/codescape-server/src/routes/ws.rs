@@ -468,7 +468,7 @@ pub async fn events(
     Ok(res)
 }
 
-fn hello(repo: &RepoEngine) -> ServerEvent {
+fn hello(st: &AppState, repo: &RepoEngine) -> ServerEvent {
     let p = repo.current();
     ServerEvent::Hello {
         repo: repo.label.clone(),
@@ -477,6 +477,7 @@ fn hello(repo: &RepoEngine) -> ServerEvent {
         nodes: p.snapshot.nodes.len(),
         edges: p.snapshot.edges.len(),
         engine: repo.layout.read().engine.clone(),
+        repos: st.repos.iter().map(|r| r.label.clone()).collect(),
         version: VERSION.to_string(),
     }
 }
@@ -516,7 +517,7 @@ async fn events_loop(
     session_key: Option<String>,
 ) {
     let mut rx = repo.events.subscribe();
-    if !send_event(&mut session, &hello(&repo)).await {
+    if !send_event(&mut session, &hello(&st, &repo)).await {
         return;
     }
     // Bind first: a temporary guard would be held across the await.

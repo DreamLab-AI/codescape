@@ -172,6 +172,8 @@ export interface HelloEvent {
   nodes: number;
   edges: number;
   engine: string;
+  /** Every scene the server serves, the first being the default; absent on older servers. */
+  repos?: string[];
   version: string;
 }
 

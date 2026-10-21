@@ -27,9 +27,11 @@ services:
       CODESCAPE_INGEST_PORT: "4101"
       CODESCAPE_BIND: 0.0.0.0
       CODESCAPE_PREFER_CUDA: "1"
-      CODESCAPE_REPO: visionclaw=/repos/visionclaw,agentbox=/repos/agentbox
-      CODESCAPE_EXCLUDES: target/**,node_modules/**,agentbox/**,data/**,logs/**,.dev-inputs/**,archive/**,vircadia-world/**
-      CODESCAPE_PATH_MAP: /home/devuser/workspace/project=/repos/visionclaw:/home/devuser/workspace/project/agentbox=/repos/agentbox
+      # The first entry is the default scene. `estate` is the whole mount tree
+      # (its L0 is the repositories); each member is also its own scene.
+      CODESCAPE_REPO: estate=/repos/estate,visionclaw=/repos/estate/visionclaw,agentbox=/repos/estate/agentbox,codescape=/repos/estate/codescape,solid-pod-rs=/repos/estate/solid-pod-rs,nostr-rust-forum=/repos/estate/nostr-rust-forum,dreamlab-ai-website=/repos/estate/dreamlab-ai-website,loom=/repos/estate/loom,knowledgeGraph=/repos/estate/knowledgeGraph,sidestr-rs=/repos/estate/sidestr-rs,visiontouch-rs=/repos/estate/visiontouch-rs
+      CODESCAPE_EXCLUDES: target/**,node_modules/**,data/**,logs/**,.dev-inputs/**,archive/**,vircadia-world/**,dist/**,.venv/**
+      CODESCAPE_PATH_MAP: /home/devuser/workspace/project=/repos/estate/visionclaw:/home/devuser/workspace/project/agentbox=/repos/estate/agentbox:...  # one agent-side prefix per mounted repository
       CODESCAPE_INGEST_TOKEN_FILE: /run/secrets/codescape-ingest-token
       CODESCAPE_ASR_URL: ws://nemotron-asr:8000/api/asr-streaming
       CODESCAPE_TTS_URL: http://pocket-tts:8000
@@ -47,25 +49,32 @@ services:
       - ./crates/visionclaw-gpu:/app/crates/visionclaw-gpu:ro         # PTX build only
       - ./crates/visionclaw-domain:/app/crates/visionclaw-domain:ro   # visionclaw-gpu's path dependency
       # Dogfood repositories: source directories only, read-only (see Service).
-      - ./.gitignore:/repos/visionclaw/.gitignore:ro
-      - ./src:/repos/visionclaw/src:ro
-      - ./crates:/repos/visionclaw/crates:ro
-      - ./client/src:/repos/visionclaw/client/src:ro
-      - ./xr-client:/repos/visionclaw/xr-client:ro
-      - ./scripts:/repos/visionclaw/scripts:ro
-      - ./docs:/repos/visionclaw/docs:ro
-      - ./tests:/repos/visionclaw/tests:ro
-      - ./agentbox/.gitignore:/repos/agentbox/.gitignore:ro
-      - ./agentbox/config:/repos/agentbox/config:ro
-      - ./agentbox/services:/repos/agentbox/services:ro
-      - ./agentbox/management-api:/repos/agentbox/management-api:ro
-      - ./agentbox/crates:/repos/agentbox/crates:ro
-      - ./agentbox/lib:/repos/agentbox/lib:ro
-      - ./agentbox/scripts:/repos/agentbox/scripts:ro
-      - ./agentbox/skills:/repos/agentbox/skills:ro
-      - ./agentbox/voice:/repos/agentbox/voice:ro
-      - ./agentbox/tests:/repos/agentbox/tests:ro
-      - ./agentbox/docs:/repos/agentbox/docs:ro
+      - ./.gitignore:/repos/estate/visionclaw/.gitignore:ro
+      - ./src:/repos/estate/visionclaw/src:ro
+      - ./crates:/repos/estate/visionclaw/crates:ro
+      - ./client/src:/repos/estate/visionclaw/client/src:ro
+      - ./xr-client:/repos/estate/visionclaw/xr-client:ro
+      - ./scripts:/repos/estate/visionclaw/scripts:ro
+      - ./docs:/repos/estate/visionclaw/docs:ro
+      - ./tests:/repos/estate/visionclaw/tests:ro
+      - ./agentbox/.gitignore:/repos/estate/agentbox/.gitignore:ro
+      - ./agentbox/config:/repos/estate/agentbox/config:ro
+      - ./agentbox/services:/repos/estate/agentbox/services:ro
+      - ./agentbox/management-api:/repos/estate/agentbox/management-api:ro
+      - ./agentbox/crates:/repos/estate/agentbox/crates:ro
+      - ./agentbox/lib:/repos/estate/agentbox/lib:ro
+      - ./agentbox/scripts:/repos/estate/agentbox/scripts:ro
+      - ./agentbox/skills:/repos/estate/agentbox/skills:ro
+      - ./agentbox/voice:/repos/estate/agentbox/voice:ro
+      - ./agentbox/tests:/repos/estate/agentbox/tests:ro
+      - ./agentbox/docs:/repos/estate/agentbox/docs:ro
+      # Estate siblings (see below): one .gitignore plus source directories each,
+      # all under the one estate root.
+      - ${CODESCAPE_ESTATE_ROOT}/codescape/.gitignore:/repos/estate/codescape/.gitignore:ro
+      - ${CODESCAPE_ESTATE_ROOT}/codescape/crates:/repos/estate/codescape/crates:ro
+      - ${CODESCAPE_ESTATE_ROOT}/codescape/client:/repos/estate/codescape/client:ro
+      # ... and likewise for solid-pod-rs, nostr-rust-forum, dreamlab-ai-website,
+      # loom, knowledgeGraph, sidestr-rs and visiontouch-rs.
       # Own caches and state, never shared with another container.
       - codescape-cargo-cache:/root/.cargo/registry
       - codescape-cargo-git:/root/.cargo/git
@@ -129,6 +138,25 @@ Compared with the service VisionClaw ran before extraction (`docker-compose.unif
 |---|---|---|
 | `4100` | Clients: REST, `/ws/positions`, `/ws/events`, `/ws/voice`, `/wss`, `/ws/presence`, static desktop bundle | published on host **loopback only** (`127.0.0.1:4100`) until P6 NIP-98; VisionClaw's knob is `CODESCAPE_PUBLISH_ADDR` |
 | `4101` | Hook ingest: `POST /ingest/v1/activity`, bearer token | **never published**; reachable on the container network only |
+
+## Estate siblings
+
+VisionClaw's deployment maps the whole [VisionFlow](https://github.com/DreamLab-AI/VisionFlow) estate, not only the two dogfood repositories. Every repository is mounted under one root, `/repos/estate/<label>`, by the same rule as above: the root `.gitignore` plus its source directories, read-only, and nothing else. `CODESCAPE_ESTATE_ROOT` is the host path of the directory holding the sibling checkouts (on the reference host, the agentbox workspace volume).
+
+Scenes are nested roots. `estate=/repos/estate` is listed first and is therefore the default scene: L0 directory nodes are minted from the first path component, so its L0 is the ten repositories and the client's repository panel shows and hides each one. Each member is listed again as its own scene (`visionclaw=/repos/estate/visionclaw` and so on), reachable with `?repo=<label>` and from the panel's scene links. A hook-reported path under nested roots is delivered to every scene that contains it, so activity lights up in the estate view and the member's. Nothing is ingested twice from disk beyond the walk itself: each scene keeps its own cache under the data directory.
+
+| Label | Mounted | Deliberately left out |
+|---|---|---|
+| `codescape` | `client`, `crates`, `deploy`, `docs` | `target` |
+| `solid-pod-rs` | `crates`, `docs`, `scripts` | `.agentic-qe` witness keys |
+| `nostr-rust-forum` | `crates`, `docs`, `scripts`, `tests`, `benchmarks` | `dist`, `target` |
+| `dreamlab-ai-website` | `src`, `content`, `marketing`, `forum-config`, `scripts`, `tests`, `docs` | `dist`, `public` (binary assets), `node_modules`, `.agentbox` push keys |
+| `loom` | `crates`, `deploy`, `docs`, `tools`, `tests`, `bench`, `scripts`, `model` | `app`, `data`, `legacy`, `uplift-results` (run output, ~700 MB) |
+| `knowledgeGraph` | `explorer`, `docs`, `scripts`, `static` | `archive` and `dist`: the published corpus. Codescape maps the explorer and tooling, never a corpus (BASELINE I4) |
+| `sidestr-rs` | `docs` and the eleven `sidestr-*` / `webledgers-teller` crate directories | `.agentic-qe` witness keys |
+| `visiontouch-rs` | `apps`, `crates`, `docs`, `scripts`, `tools` | `archive`, `target` |
+
+Adding a sibling means: its `.gitignore` and source directories as `:ro` binds under `/repos/estate/<label>`, a `<label>=/repos/estate/<label>` entry in `CODESCAPE_REPO` for its own scene, and one `CODESCAPE_PATH_MAP` entry per agent-side path the hooks will report for it (longest prefix wins, so a nested checkout such as `project/codescape` may sit beside the standalone one). Build output and key material are never mounted; the exclude list is a second fence, not the first, and must never name a member repository (an `agentbox/**` exclude would remove that member from the estate).
 
 ## Service
 

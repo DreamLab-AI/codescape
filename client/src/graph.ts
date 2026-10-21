@@ -28,6 +28,8 @@ export interface GraphModel {
   importance: Float32Array;
   /** 1 when the node looks like test code. */
   isTest: Uint8Array;
+  /** Index into `roots` of the node's top-level directory (its repository in an estate scene), -1 if unknown. */
+  root: Int32Array;
   /** Index of the L0 aggregate each node rolls up to (itself for L0), -1 when none. */
   region: Int32Array;
   /** Undirected CSR adjacency over every non-structural relation plus structural links. */
@@ -40,6 +42,8 @@ export interface GraphModel {
   /** Lower-cased labels for search. */
   labelsLower: string[];
   langs: Lang[];
+  /** Top-level directory names present, sorted; each is an L0 node. */
+  roots: string[];
   communities: number[];
 }
 
@@ -48,6 +52,14 @@ const TEST_RE = /(^|\/)(tests?|__tests__|spec|specs|testdata|fixtures)\/|[._-](t
 export function looksLikeTest(n: Pick<CodeNode, 'path' | 'label'>): boolean {
   if (n.path && TEST_RE.test(n.path)) return true;
   return /^test_|^tests?$|_tests?$/i.test(n.label);
+}
+
+/** Top-level directory of a node: an L0 node is its own; others take their path's first component. */
+export function topDir(n: Pick<CodeNode, 'tier' | 'path' | 'label'>): string {
+  const p = n.path ?? (n.tier === 'l0' ? n.label : null);
+  if (p === null) return '';
+  const i = p.indexOf('/');
+  return i > 0 ? p.slice(0, i) : p;
 }
 
 export function buildModel(snapshot: GraphSnapshot): GraphModel {
@@ -59,6 +71,16 @@ export function buildModel(snapshot: GraphSnapshot): GraphModel {
   const community = new Uint32Array(n);
   const importance = new Float32Array(n);
   const isTest = new Uint8Array(n);
+  const root = new Int32Array(n).fill(-1);
+  const rootIndex = new Map<string, number>();
+  const rootOf = (name: string): number => {
+    let r = rootIndex.get(name);
+    if (r === undefined) {
+      r = rootIndex.size;
+      rootIndex.set(name, r);
+    }
+    return r;
+  };
   const labelsLower: string[] = new Array(n);
   const langSet = new Set<Lang>();
   const commSet = new Set<number>();
@@ -70,14 +92,22 @@ export function buildModel(snapshot: GraphSnapshot): GraphModel {
     community[i] = nd.community;
     importance[i] = nd.importance;
     isTest[i] = looksLikeTest(nd) ? 1 : 0;
+    const td = topDir(nd);
+    if (td !== '') root[i] = rootOf(td);
     labelsLower[i] = nd.label.toLowerCase();
     if (nd.tier !== 'l0') langSet.add(nd.lang);
     if (nd.tier === 'l2' || nd.tier === 'l1') commSet.add(nd.community);
   }
+  // Sort roots by name and remap the per-node indices to the sorted order.
+  const roots = [...rootIndex.keys()].sort();
+  const remap = new Int32Array(rootIndex.size);
+  roots.forEach((name, k) => (remap[rootIndex.get(name)!] = k));
+  for (let i = 0; i < n; i++) if (root[i] >= 0) root[i] = remap[root[i]];
   const parent = new Int32Array(n).fill(-1);
   for (let i = 0; i < n; i++) {
     const p = nodes[i].parent;
     if (p !== 0) parent[i] = index.get(p) ?? -1;
+    if (root[i] < 0 && parent[i] >= 0) root[i] = root[parent[i]];
   }
   const region = new Int32Array(n).fill(-1);
   for (let i = 0; i < n; i++) {
@@ -146,6 +176,7 @@ export function buildModel(snapshot: GraphSnapshot): GraphModel {
     community,
     importance,
     isTest,
+    root,
     region,
     adjStart,
     adjList,
@@ -153,6 +184,7 @@ export function buildModel(snapshot: GraphSnapshot): GraphModel {
     fileImports: Uint32Array.from(fileImports),
     labelsLower,
     langs: [...langSet].sort(),
+    roots,
     communities: [...commSet].sort((a, b) => a - b),
   };
 }

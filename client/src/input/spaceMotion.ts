@@ -8,14 +8,22 @@
  * between the two apps keeps their muscle memory:
  * - tilt sideways (ry) and twist (rz) both orbit left/right (azimuth),
  * - tilt forward/back (rx) orbits up/down (elevation),
- * - push (tz, positive = push away from you) dollies IN, scaled by distance,
- * - slide (tx, ty) pans the target in the camera plane, scaled by distance,
+ * - push the puck away from you (ty, negative = away) dollies IN, scaled by
+ *   distance; pull it towards you dollies OUT,
+ * - lift the puck (tz, negative = lift) pans the target UP; press it down pans
+ *   DOWN; slide sideways (tx) pans right and left, all scaled by distance,
  * - roll about the view axis is not used: OrbitControls keeps the horizon.
+ *
+ * The HID translation report is (tx, ty, tz) = (right, towards you, down):
+ * ty is the horizontal push/pull and tz the vertical lift/press. An earlier
+ * mapping read tz as the push axis, so pressing the cap down flew into the
+ * graph and pulling it back climbed; checked against a SpaceMouse on
+ * 2026-10-21. `invert` is the per-device escape hatch if a unit differs.
  *
  * Inputs are the raw device integers after the driver's sign convention
  * (`parseReport` negates rx and ry like VisionClaw's SpaceDriverService), so
- * the direction table in `__tests__/spacePilot.test.ts` is the contract both
- * apps share. Output is per second; the caller multiplies by frame time.
+ * the direction table in `__tests__/spacePilot.test.ts` is the contract.
+ * Output is per second; the caller multiplies by frame time.
  */
 
 export interface MotionConfig {
@@ -78,16 +86,16 @@ export function cameraDelta(s: Sample, dt: number, cfg: MotionConfig = DEFAULT_M
   const ry = shape(s.ry, cfg) * sgn('ry');
   const rz = shape(s.rz, cfg) * sgn('rz');
   const step = Math.max(0, Math.min(0.1, dt)); // clamp a stalled frame
-  // VisionClaw: theta -= ry (sideways tilt orbits), phi += rx, camera moves by
-  // -tz (push = forward), pan by +tx / +ty. Twist is added to azimuth so the
-  // puck's natural "turn" works too; both agree in sign.
+  // theta -= ry (sideways tilt orbits), phi += rx. Push away (-ty) dollies in,
+  // lift (-tz) pans up, slide (+tx) pans right. Twist is added to azimuth so
+  // the puck's natural "turn" works too; both agree in sign.
   const yaw = Math.max(-1, Math.min(1, ry + rz));
   return {
     azimuth: -yaw * cfg.rotateRate * step,
     elevation: rx * cfg.rotateRate * step,
-    dollyFactor: Math.exp(-tz * cfg.dollyRate * step),
+    dollyFactor: Math.exp(ty * cfg.dollyRate * step),
     panRight: tx * cfg.panRate * step,
-    panUp: ty * cfg.panRate * step,
+    panUp: -tz * cfg.panRate * step,
   };
 }
 

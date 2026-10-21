@@ -107,7 +107,7 @@ describe('store reducers', () => {
     expect(s.timeline.t).toBeNull();
     s = reduce(s, { type: 'filter', patch: { hideTests: true } });
     s = reduce(s, { type: 'filter', patch: { community: 2 } });
-    expect(s.filter).toEqual({ langs: [], community: 2, hideTests: true });
+    expect(s.filter).toEqual({ langs: [], community: 2, hideTests: true, hiddenRoots: [] });
   });
 
   it('createStore notifies only on change', () => {
