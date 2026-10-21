@@ -2,7 +2,7 @@
 
 # Codescape
 
-### Code-graph section of the Dynamic Agentic Mesh
+### A shared spatial view of source code for people and agents
 
 [![Licence](https://img.shields.io/badge/Licence-AGPL--3.0%20%2B%20MIT%2FApache--2.0%20crates-blue?style=flat-square)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-1.94%2B-f74c00?style=flat-square&logo=rust)](Cargo.toml)
@@ -45,7 +45,14 @@ tested property (see [Security posture](#security-posture)).
 ---
 
 ## See it
-Captured from the live desktop client at 1920×1080 through browser automation, against the Codescape service running on the CUDA engine. The scene is the real VisionClaw and agentbox checkouts, not a demo dataset.
+The screenshots below were captured for the 19 October 2026 README update from the desktop client at 1920×1080 through browser automation, against the Codescape service running on the CUDA engine. The scene is the real VisionClaw and agentbox checkouts, not a demo dataset.
+
+### Repository scenes and input
+
+A local 21 October development commit adds a collapsible repository panel, estate-scene links and revised SpaceMouse axes. That commit (`ffb98c2`) was not on the published main branch when this documentation update was prepared. These controls remain pending publication; the screenshots below predate them. See [deployment configuration](deploy/README.md) for the published scene and input contract.
+
+<details>
+<summary><strong>Captured gallery: tiers, filters, queries and timeline</strong></summary>
 
 ### Three levels of detail
 The client shows one tier at a time: leave it on `auto` or pin L0, L1 or L2 from the tier panel. L0 shows directories, L1 files, L2 symbols.
@@ -77,6 +84,8 @@ The command box takes the same grammar as push-to-talk ([Voice and typed command
 
 Not shown: agent presence (an actor appearing at the node it touches), voice and the XR client. Those need the hook token, the speech services and a headset respectively, and are described in [Status & honesty](#status--honesty).
 
+</details>
+
 ---
 
 ## Where Codescape sits
@@ -87,7 +96,7 @@ Codescape is one section of the [VisionFlow](https://github.com/DreamLab-AI/Visi
 |---|---|
 | [VisionFlow](https://github.com/DreamLab-AI/VisionFlow) | The canon: ecosystem map, compatibility matrix and honest status ledger. |
 | [VisionClaw](https://github.com/DreamLab-AI/VisionClaw) | The host deployment. It mounts this repository as the `codescape/` submodule, owns the compose service and nginx route, builds the CUDA PTX, and publishes [`visionclaw-wire`](https://crates.io/crates/visionclaw-wire), the frozen position wire. Its Godot XR client connects through `/wss`. |
-| [agentbox](https://github.com/DreamLab-AI/agentbox) | The agent container. The activity-sink hook ([ADR-2144](https://github.com/DreamLab-AI/agentbox/blob/feat/codescape-activity-sink/docs/adr/ADR-2144-activity-sink-hook.md), branch `feat/codescape-activity-sink`) posts agent activity to `:4101`. |
+| [agentbox](https://github.com/DreamLab-AI/agentbox) | The agent container. The activity-sink hook ([ADR-2146](https://github.com/DreamLab-AI/agentbox/blob/main/docs/adr/ADR-2146-activity-sink-hook.md); merged, default-off) posts agent activity to `:4101`. |
 | [loom](https://github.com/DreamLab-AI/loom) | Optional out-of-grammar command parse (`CODESCAPE_LOOM_URL`); voice runs without it. |
 | [graphicle](https://github.com/Graphicle-AI/graphicle) | The code-graph extraction engine, used unmodified as a pinned git dependency. |
 
@@ -115,7 +124,7 @@ flowchart LR
   end
   D[Desktop client<br/>React, three, R3F]
   X[Godot XR client<br/>unchanged, via /wss]
-  H[Agent activity hook<br/>agentbox ADR-2144]
+  H[Agent activity hook<br/>agentbox ADR-2146]
   subgraph voice[Voice stack]
     ASR[nemotron-asr]
     TTS[pocket-tts]
@@ -136,8 +145,7 @@ flowchart LR
 ```
 
 Positions go out as the frozen 52-byte V3 record inside V5 envelopes, the
-same bytes VisionClaw's clients already decode, so the XR client needs no
-change. Topology, selections, captions and query results go out as JSON on
+same position record VisionClaw’s clients decode. The shared record reduces decoder changes; client connection, presence and device acceptance remain separate integration work. Topology, selections, captions and query results go out as JSON on
 `/ws/events`. There is no Codescape-specific wire format.
 
 
@@ -161,14 +169,21 @@ A permissive crate never depends on an AGPL crate. See [LICENSE](LICENSE).
 ## Quick start
 ### Standalone, CPU layout
 
+From this repository root, build the browser client first (Node 22.3 or later and Rust 1.94 or later):
+
 ```bash
+cd client
+npm ci --include=dev
+npm run build
+cd ..
 cargo run --release -p codescape-server -- \
   --bind 127.0.0.1 \
   --data-dir ./.codescape \
+  --static-dir target/codescape-dist \
   --repo myrepo=/path/to/myrepo
-# open http://127.0.0.1:4100/  (build the client first: see client/README.md,
-# then add --static-dir target/codescape-dist)
 ```
+
+Open `http://127.0.0.1:4100/`, select a tier, then try `overview` and `focus on <symbol-name>` in the command box. The path in `--repo` must name the source tree you want to inspect. Voice additionally needs speech services; typed navigation does not.
 
 `--repo` is repeatable (`--repo a=/src/a --repo b=/src/b`). The default data
 directory is `/data/codescape`, which is rarely writable on a workstation;
@@ -191,6 +206,8 @@ back to the CPU engine with the reason shown in `/api/health`.
 
 VisionClaw mounts this repository as a git submodule at `codescape/` and owns
 the compose service and the nginx location (see [deploy/README.md](deploy/README.md)).
+
+Run from the **VisionClaw** checkout, in its authorised host shell:
 
 ```bash
 git submodule update --init codescape
@@ -228,7 +245,9 @@ authoritative phrase list.
 
 ---
 
-## Configuration
+<details>
+<summary><strong>Configuration reference</strong></summary>
+
 Every flag has a `CODESCAPE_*` environment variable. The main ones:
 
 | Variable | Default | Purpose |
@@ -261,9 +280,11 @@ P6 auth flags).
 
 ---
 
+</details>
+
 ## Security posture
 - **Authentication is open until P6.** `/api/health` reports `"auth":"open"`.
-  NIP-98 on every route and a pubkey allowlist land in P6. Until then, do not
+  NIP-98 and the allowlist remain planned. `--require-auth` currently refuses startup; it does not enable a verifier ([source](crates/codescape-server/src/auth.rs)). Until then, do not
   expose `:4100` to a network you do not trust. Under VisionClaw the port is
   published on host loopback only; the dev nginx path `/codescape/` on `:3001`
   is a recorded dev-only owner waiver.
@@ -303,6 +324,9 @@ cd client && npm ci && npm run typecheck && npm test && npm run build
 ---
 
 ## Status & honesty
+
+**Publication checked 21 October 2026 against main `e300451`.** Local development at `ffb98c2` adds the repository panel, scene links and SpaceMouse mapping; this documentation publication leaves that feature commit unmerged. The phase evidence below records earlier runs; its counts and hardware observations are not fresh results for this revision.
+
 | Phase | State |
 |---|---|
 | P0 Spine | landed |
@@ -313,10 +337,9 @@ cd client && npm ci && npm run typecheck && npm test && npm run build
 | P5 Voice | not gated: one spoken round trip (ASR, grammar, answer, TTS) observed; the goldens and contention evidence are open |
 | P6 Publish and dispatch | pending: TLS, NIP-98, allowlist, signed dispatch |
 
-Shared-port access through the VisionClaw dev nginx at `http://<host>:3001/codescape/` is live as of 2026-10-18 (ADR-2143 A4), and the XR headset runs against it with the client's Backend toggle in Codescape mode.
+The recorded 18 October host setup serves `/codescape/` through VisionClaw’s development nginx on port 3001 (ADR-2143 A4). The evidence index links the earlier headset run. This README review has not revalidated the running host, current GPU conformance or headset behaviour.
 
-The 100k-node targets (GPU step 5 ms, cold settle 10 s) are missed at 7.8 ms
-and 13.7 s, both attributed to host-side work per step. Evidence:
+Earlier reported 100k-node figures (7.8 ms GPU step and 13.7 s cold settle) miss the 5 ms / 10 s targets. The evidence index says performance and conformance numbers were reported without a committed rerun; treat them as provisional, not certified measurements. Evidence:
 [docs/evidence/README.md](docs/evidence/README.md).
 
 Things to know before relying on it:
