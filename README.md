@@ -333,7 +333,7 @@ cd client && npm ci && npm run typecheck && npm test && npm run build
 | P1 Pixels | landed: gate of 197 Rust tests and 60 client tests green, clippy, fmt and rustdoc clean. Performance and conformance numbers were reported by workers and not yet re-run |
 | P2 GPU, live, own service | not gated: the CUDA engine and compose service exist; the committed GPU conformance run and an egress test are open |
 | P3 Presence and scale | not gated: hook ingest drove an actor by hand; 100k-node evidence open |
-| P4 XR | partial: the unchanged Godot client rendered Codescape at 90 FPS on a headset; `/ws/presence` is a handshake shim |
+| P4 XR | partial: the Godot client rendered Codescape at 90 FPS on a headset on 17 and 21 October; since VisionClaw ADR-2143 A6 it carries a Codescape mode (capability table, greyed controls, the desktop community palette) with no wire change; `/ws/presence` is a handshake shim |
 | P5 Voice | not gated: one spoken round trip (ASR, grammar, answer, TTS) observed; the goldens and contention evidence are open |
 | P6 Publish and dispatch | pending: TLS, NIP-98, allowlist, signed dispatch |
 

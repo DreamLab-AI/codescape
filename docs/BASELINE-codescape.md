@@ -6,7 +6,7 @@
 
 ## Purpose and scope
 
-Codescape is a near-real-time 3D view of a codebase that humans and agents share. It extracts a code graph (graphicle), lays it out (CPU Barnes-Hut or CUDA), streams positions on the frozen V3/V5 wire to a desktop client and to the unchanged Godot XR client, shows who is touching what from agent activity hooks, and takes push-to-talk voice and typed commands that are parsed into typed commands before anything runs.
+Codescape is a near-real-time 3D view of a codebase that humans and agents share. It extracts a code graph (graphicle), lays it out (CPU Barnes-Hut or CUDA), streams positions on the frozen V3/V5 wire to a desktop client and to the Godot XR client (unchanged wire; the client's Codescape mode is VisionClaw ADR-2143 A6), shows who is touching what from agent activity hooks, and takes push-to-talk voice and typed commands that are parsed into typed commands before anything runs.
 
 Out of scope, permanently: any knowledge corpus, ontology, memory store or knowledge route. Codescape is a code-work tool.
 
@@ -107,6 +107,7 @@ flowchart LR
 
 - **Performance targets** (100k nodes): GPU step 5 ms, measured 7.8 ms (kernels 1.7 ms); cold settle 10 s, measured 13.7 s on GPU and 56.6 s on CPU. Cause identified as host-side work per step. Numbers were reported by workers, not re-run; re-run here after import.
 - **Presence shim gaps** (P4): `/ws/presence` speaks the XR handshake but carries no avatars between clients; the XR agent hover label is empty.
+- **XR writes** (P4): `/wss` ignores `nodePin`, `nodeUnpin` and `nodeDrag`, and there is no physics write, so the XR client greys those controls (VisionClaw ADR-2143 A6). Whether Codescape should honour drag and pin is undecided.
 - **XR actor labels**: XR actors show the 64-character pubkey; they should carry a short display label, as the desktop halo label does.
 - **Initial camera framing**: at L0 the auto tier's first framing can land inside a community hull.
 - **P6 Publish and dispatch**: TLS and NIP-98 on every route, pubkey allowlist, published `:4100`, the kind-31402 relay to `/v1/voice-intent`. Until then auth is open and `:4100` stays on loopback (dev nginx waiver aside).
