@@ -292,7 +292,10 @@ async fn run_command_inner(
     text: &str,
     ctx: Arc<Mutex<CommandCtx>>,
 ) -> Result<(QueryResult, Effect), String> {
-    let cmd = match parse_command(text) {
+    // Jev option (VC-39-S1-01): consulted only on a grammar NoMatch; any miss leaves
+    // the grammar result untouched so the Loom path below is exactly as before.
+    let parsed = codescape_server::voice::jev::after_grammar(parse_command(text), st.jev.as_ref()).await;
+    let cmd = match parsed {
         Ok(c) => Some((c, None)),
         Err(ParseError::Empty) => return Err("Say or type a command.".into()),
         Err(ParseError::NoMatch { normalised })

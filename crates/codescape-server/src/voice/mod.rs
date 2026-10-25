@@ -5,5 +5,6 @@
 //! needs the floor arbiter and the command executor.
 
 pub mod asr;
+pub mod jev;
 pub mod loom;
 pub mod tts;

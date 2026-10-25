@@ -282,6 +282,19 @@ P6 auth flags).
 
 </details>
 
+### Jev option
+
+An opt-in System One (TypeSafe Jev) Choice sits between the grammar and Loom. When the grammar returns no match, Jev may select one of the grammar's own argument-free commands (`show_all`, `hide_tests`, `zoom_in`, `zoom_out`, `overview`, `back`, `replay`, `live`, `stop_following`, `help`) or `none`. It never names a target or supplies arguments. `none`, any failure (flag off, no endpoint, timeout, transport error, non-2xx, malformed reply, out-of-set choice) or a confidence below the threshold leaves today's Loom path unchanged. A grammar hit, an empty utterance and an invalid command never reach Jev.
+
+- **Off by default.** `CODESCAPE_JEV=1` enables it.
+- **What leaves:** only the normalised utterance (at most 512 characters). No repository content.
+- **Destination:** `CODESCAPE_JEV_ENDPOINT` (+ `CODESCAPE_JEV_MODEL`, key from the variable named by `CODESCAPE_JEV_KEY_ENV`); else the agentbox loopback proxy (`AGENTBOX_SYSTEM_ONE_PROXY=1` with `AGENTBOX_SYSTEM_ONE_ENDPOINT`/`_MODEL`, or the `AGENTBOX_SKILL_ROUTE_*` pair; no Authorization header); else `https://api.typesafe.ai/v1/systemone` with `TYPESAFE_API_KEY`. The resolved URL is added to the egress allowlist only when enabled.
+- **Local-only by default.** The proxy and public API need `AGENTBOX_SYSTEM_ONE_BACKEND_LOCAL=1` or `CODESCAPE_JEV_LOCAL=1`; `CODESCAPE_JEV_ALLOW_CLOUD=1` accepts a non-local endpoint.
+- **Threshold:** `CODESCAPE_JEV_MIN_CONFIDENCE` defaults to `1.0`, which accepts nothing automatically. Lower it only from labelled data.
+- **Deadline:** `CODESCAPE_JEV_TIMEOUT_MS`, default 3000, capped at 4000, no retries.
+
+Wiring and fallback tests only; no measured uplift.
+
 ## Security posture
 - **Authentication is open until P6.** `/api/health` reports `"auth":"open"`.
   NIP-98 and the allowlist remain planned. `--require-auth` currently refuses startup; it does not enable a verifier ([source](crates/codescape-server/src/auth.rs)). Until then, do not

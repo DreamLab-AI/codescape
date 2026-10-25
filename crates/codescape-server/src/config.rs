@@ -278,6 +278,8 @@ impl Config {
                 .filter(|s| !s.is_empty())
                 .map(String::from),
         );
+        // The Jev option's endpoint is allowlisted only when it is enabled and resolves.
+        v.extend(crate::voice::jev::egress_url(&|k| std::env::var(k).ok()));
         v
     }
 

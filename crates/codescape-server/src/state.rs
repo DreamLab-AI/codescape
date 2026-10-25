@@ -13,6 +13,7 @@ use codescape_server::egress::EgressAllowlist;
 use codescape_server::origin::OriginPolicy;
 use codescape_server::persist::{atomic_write, is_ephemeral_label, ActorIds};
 use codescape_server::proxy::{ProxyTrust, PublicOrigin};
+use codescape_server::voice::jev::JevClient;
 use codescape_server::voice::loom::LoomClient;
 use codescape_server::voice::tts::TtsClient;
 use codescape_server::xr_presence::PresenceHub;
@@ -309,6 +310,8 @@ pub struct AppState {
     pub tts: TtsClient,
     /// Loom fallback, when configured.
     pub loom: Option<LoomClient>,
+    /// Jev command pick between grammar and Loom (`CODESCAPE_JEV=1`), off by default.
+    pub jev: Option<JevClient>,
     sessions: Mutex<HashMap<String, Weak<SharedView>>>,
     /// Set on SIGTERM.
     pub shutdown: Arc<AtomicBool>,
@@ -333,6 +336,7 @@ impl AppState {
         let loom = cfg
             .loom_url()
             .map(|u| LoomClient::new(&egress, u, &cfg.loom_model));
+        let jev = JevClient::from_lookup(&|k| std::env::var(k).ok(), &egress);
         Self {
             cfg,
             repos,
@@ -350,6 +354,7 @@ impl AppState {
             open_connections: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
             tts,
             loom,
+            jev,
             sessions: Mutex::new(HashMap::new()),
             shutdown,
             anon: AtomicU64::new(1),
