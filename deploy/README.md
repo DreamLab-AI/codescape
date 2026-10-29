@@ -35,6 +35,13 @@ services:
       CODESCAPE_INGEST_TOKEN_FILE: /run/secrets/codescape-ingest-token
       CODESCAPE_ASR_URL: ws://nemotron-asr:8000/api/asr-streaming
       CODESCAPE_TTS_URL: http://pocket-tts:8000
+      CODESCAPE_JEV: "1"
+      CODESCAPE_JEV_ENDPOINT: http://systemone:8097/v1/systemone
+      CODESCAPE_JEV_MODEL: laya-typed-decisions
+      CODESCAPE_JEV_LOCAL: "1"
+      CODESCAPE_JEV_TIMEOUT_MS: "4000"
+      # Unset until calibrated: enabled calls do not imply command acceptance.
+      CODESCAPE_JEV_MIN_CONFIDENCE: ""
       CODESCAPE_LOOM_URL: ""                              # optional; empty means unset
       CODESCAPE_TRUST_PROXY: "1"
       CODESCAPE_TRUST_PROXY_FROM: visionclaw-server       # the nginx peer's network alias
@@ -207,3 +214,19 @@ Trust is narrowed to that peer: a sibling container sending the same headers is 
 ## Voice and LLM egress
 
 `CODESCAPE_ASR_URL` (nemotron-asr streaming WebSocket), `CODESCAPE_TTS_URL` (pocket-tts) and optionally `CODESCAPE_LOOM_URL` (the Loom door, OpenAI-compatible `/v1`). These, plus the P6 voice-intent endpoint, are the only outbound targets.
+
+## System One rollout
+
+The host Compose deployment now opts the existing Jev command classifier in.
+Its endpoint is the local System One façade on `visionclaw_network`, not the
+agentbox loopback proxy (loopback would resolve inside Codescape itself).
+The existing egress allowlist derives the judge URL from this configuration.
+Grammar matches still bypass the model, every accepted command still passes
+`Command::validate`, and failures retain the existing Loom fallback.
+
+No command acceptance threshold has been calibrated. The deployment leaves
+`CODESCAPE_JEV_MIN_CONFIDENCE` unset, preserving the current conservative
+acceptance rule; enablement alone is not evidence of improved command accuracy.
+Opt out with `CODESCAPE_JEV=0`. Recreate the Codescape service through the host
+launch workflow to apply environment changes; a shell export cannot alter the
+running process. No restart was performed as part of this change.
