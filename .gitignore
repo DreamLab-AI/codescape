@@ -17,3 +17,4 @@ secrets/
 .codescape/
 ids.bin
 positions.bin
+.claude-flow/
