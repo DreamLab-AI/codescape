@@ -15,4 +15,4 @@ See [`PREAMBLE.md`](PREAMBLE.md) for how to work against this pack. The governin
 
 | ID | Title | Decision | Implementation | Activation | Date |
 |---|---|---|---|---|---|
-| [ADR-0001](ADR-0001-extraction-from-visionclaw.md) | Codescape is extracted from VisionClaw into its own repository with a per-crate licence split | accepted | complete | inactive | 2026-10-18 |
+| [ADR-0001](ADR-0001-extraction-from-visionclaw.md) | Codescape is extracted from VisionClaw into its own repository with a per-crate licence split | accepted | complete | live | 2026-10-18 |

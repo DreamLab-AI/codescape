@@ -4,7 +4,7 @@ title: Codescape is extracted from VisionClaw into its own repository with a per
 date: 2026-10-18
 decision_status: accepted
 implementation_status: complete
-activation_status: inactive
+activation_status: live
 supersedes: []
 superseded_by: []
 verified_commit: the import commit ("feat: import Codescape from VisionClaw cac36a028 (ADR-0001)"), parent 77a1748
@@ -63,3 +63,13 @@ repo: codescape
 - `cargo publish --dry-run -p codescape-model -p codescape-collab` packages and verifies both crates against `visionclaw-wire` from crates.io.
 - The client builds and tests with its own `package.json`, and its isolation test has no exception left.
 - Follow-on, not done here: re-run and commit the P0/P1/P2 phase evidence under `docs/evidence/<phase>/`; VisionClaw's switch to the submodule.
+
+## Close-out 2026-10-30
+
+Activation `inactive` → `live`. The activation event named in the status line (VisionClaw consuming this repository as its `codescape/` submodule) has happened and is serving:
+
+- VisionClaw `main` at `772039bd1` declares `[submodule "codescape"] url = https://github.com/DreamLab-AI/codescape` in `.gitmodules` and pins gitlink `e3b76f63e` (`git ls-tree dreamlab-github/main codescape`), which is this repository's `origin/main`. The host checkout's submodule tree is at the same commit (`git -C project/codescape rev-parse --short HEAD` → `e3b76f6`).
+- `docker-compose.unified.yml:463` defines the `codescape` service with `entrypoint: ["/app/codescape/deploy/codescape-entrypoint.sh"]` and `CODESCAPE_PTX_DIR: /codescape-target/ptx` (Decision 4's runtime PTX load).
+- The container `codescape` (compose project `ar-ai-knowledge-graph`) is `Up (healthy)` with `/app/codescape` bind-mounted read-only from the submodule. `GET http://127.0.0.1:4100/api/health` inside it returned `"engine":"cuda"`, `"engine_reason":"cuda: NVIDIA RTX A6000 (visionclaw_unified PTX isa 9.0 tag 7b41d3561a264b78, provenance compiled)"`, `"nodes":94249`, `"settled":true`, `"version":"0.1.0"`.
+
+Still open, not a blocker for activation: the P0/P1/P2 phase gates have not been re-run here. `docs/evidence/` at `e3b76f6` holds only `README.md` and `import-gate.txt`.
