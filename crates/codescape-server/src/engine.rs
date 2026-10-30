@@ -14,6 +14,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use codescape_collab::{ActorKind, ActorRegistry, TimelineLog};
+use codescape_ingest::annotations::AnnotationTable;
 use codescape_ingest::{IngestConfig, Ingestor};
 use codescape_layout::{select_engine, LayoutEngine, LayoutParams, PositionSet};
 use codescape_model::events::{PresenceEvent, ServerEvent};
@@ -121,10 +122,22 @@ pub struct Published {
     pub index: HashMap<u32, usize>,
     /// Repo-relative file path → file node id.
     pub files: HashMap<Arc<str>, u32>,
+    /// `@ontology` annotations bound to this snapshot (VisionClaw ADR-2164 D2).
+    /// Swapped in the same write as the snapshot, so a reader never pairs a
+    /// snapshot with refs bound to another.
+    pub annotations: Arc<AnnotationTable>,
+    /// Bumped whenever `annotations` changes, including an annotation-only
+    /// edit that left the snapshot (and its revision) unchanged; part of the
+    /// `initialGraphLoad` cache key.
+    pub annotations_rev: u64,
 }
 
 impl Published {
-    fn new(snapshot: Arc<GraphSnapshot>) -> Self {
+    fn new(
+        snapshot: Arc<GraphSnapshot>,
+        annotations: Arc<AnnotationTable>,
+        annotations_rev: u64,
+    ) -> Self {
         let index = snapshot.index();
         let files = snapshot
             .nodes
@@ -136,6 +149,8 @@ impl Published {
             snapshot,
             index,
             files,
+            annotations,
+            annotations_rev,
         }
     }
 }
@@ -232,7 +247,7 @@ pub struct RepoEngine {
     /// Held while one caller builds the shared base, so concurrent clients wait and reuse it.
     base_build: Mutex<()>,
     snapshot_bodies: BoundedCache<(u64, u8, u64), bytes::Bytes>,
-    initial_loads: BoundedCache<(u64, u64), Arc<String>>,
+    initial_loads: BoundedCache<(u64, u64, u64), Arc<String>>,
     projections: BoundedCache<(u64, u8, u64), Arc<Vec<u32>>>,
     sssp: BoundedCache<(u32, u64), SsspOverlay>,
     analytics_dirty: AtomicBool,
@@ -316,6 +331,15 @@ impl RepoEngine {
             "repository ingested"
         );
         let snapshot = Arc::new(ingestor.snapshot().clone());
+        let started = Instant::now();
+        let annotations = Arc::new(AnnotationTable::scan(&spec.root, &snapshot));
+        tracing::info!(
+            repo = %spec.label,
+            annotations = annotations.annotations().len(),
+            annotated_nodes = annotations.ontology_refs().len(),
+            ms = started.elapsed().as_millis() as u64,
+            "ontology annotations scanned"
+        );
         let epoch = ingestor.interner().epoch();
         let interner_len = ingestor.interner().len() as u32;
         atomic_write(&data.ids(), &ingestor.interner().to_bytes())?;
@@ -340,7 +364,7 @@ impl RepoEngine {
             root: spec.root.clone(),
             data,
             ingest: RwLock::new(ingestor),
-            published: RwLock::new(Arc::new(Published::new(snapshot))),
+            published: RwLock::new(Arc::new(Published::new(snapshot, annotations, 0))),
             positions: RwLock::new(Arc::new(PositionsFrame::default())),
             layout: RwLock::new(LayoutStatus::default()),
             collab: Mutex::new(Collab {
@@ -439,8 +463,44 @@ impl RepoEngine {
         }
     }
 
-    fn publish(&self, snapshot: Arc<GraphSnapshot>) {
-        *self.published.write() = Arc::new(Published::new(snapshot));
+    /// Publish `snapshot` with the annotation table re-read for `changed`
+    /// (repository-relative paths) and rebound to the new spans.
+    fn publish(&self, snapshot: Arc<GraphSnapshot>, changed: &[String]) {
+        let prev = self.current();
+        let mut table = (*prev.annotations).clone();
+        let rev = if table.refresh(&self.root, &snapshot, changed) {
+            prev.annotations_rev + 1
+        } else {
+            prev.annotations_rev
+        };
+        *self.published.write() = Arc::new(Published::new(snapshot, Arc::new(table), rev));
+    }
+
+    /// A batch that produced no graph delta may still have changed
+    /// annotations (graphicle normally reports any content change, comments
+    /// included, so this is defensive): re-read those paths and republish the
+    /// same snapshot when the refs moved.
+    fn refresh_annotations(&self, paths: &[PathBuf]) {
+        let rel: Vec<String> = paths
+            .iter()
+            .filter_map(|p| {
+                let r = p.strip_prefix(&self.root).unwrap_or(p);
+                (!r.is_absolute()).then(|| r.to_string_lossy().into_owned())
+            })
+            .collect();
+        if rel.is_empty() {
+            return;
+        }
+        let prev = self.current();
+        let mut table = (*prev.annotations).clone();
+        if table.refresh(&self.root, &prev.snapshot, &rel) {
+            tracing::info!(repo = %self.label, annotations = table.annotations().len(), "ontology annotations changed");
+            *self.published.write() = Arc::new(Published::new(
+                prev.snapshot.clone(),
+                Arc::new(table),
+                prev.annotations_rev + 1,
+            ));
+        }
     }
 
     fn persist_ids(&self) {
@@ -460,7 +520,11 @@ impl RepoEngine {
             let mut ing = self.ingest.write();
             match ing.apply_changed(paths) {
                 Ok(Some(d)) => (d, Arc::new(ing.snapshot().clone())),
-                Ok(None) => return None,
+                Ok(None) => {
+                    drop(ing);
+                    self.refresh_annotations(paths);
+                    return None;
+                }
                 Err(e) => {
                     tracing::warn!(error = %e, n = paths.len(), "apply_changed failed");
                     return None;
@@ -473,7 +537,7 @@ impl RepoEngine {
 
     fn after_change(&self, snapshot: Arc<GraphSnapshot>, delta: GraphDelta, topology: bool) {
         let revision = snapshot.revision;
-        self.publish(snapshot.clone());
+        self.publish(snapshot.clone(), &delta.changed_paths);
         self.persist_ids();
         {
             let mut c = self.collab.lock();
@@ -639,11 +703,17 @@ impl RepoEngine {
     /// The `initialGraphLoad` text frame for `ids` (sorted) at the current revision.
     pub fn initial_load_body(&self, ids: &[u32]) -> Arc<String> {
         let p = self.current();
-        let key = (p.snapshot.revision, ids_key(ids));
+        let key = (p.snapshot.revision, p.annotations_rev, ids_key(ids));
         self.initial_loads.get_or_insert_with(key, || {
             let set: HashSet<u32> = ids.iter().copied().collect();
             Arc::new(
-                codescape_server::xr::initial_graph_load(&p.snapshot, &set, now_ms()).to_string(),
+                codescape_server::xr::initial_graph_load(
+                    &p.snapshot,
+                    &set,
+                    p.annotations.ontology_refs(),
+                    now_ms(),
+                )
+                .to_string(),
             )
         })
     }

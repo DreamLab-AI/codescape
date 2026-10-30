@@ -42,6 +42,7 @@
 #![warn(missing_docs)]
 
 mod analytics;
+pub mod annotations;
 mod engine;
 mod map;
 mod view;

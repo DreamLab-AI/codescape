@@ -9,6 +9,7 @@
 //! | `POST /api/graph/query {text}` | `QueryResult` |
 //! | `GET /api/settings/physics` | layout parameters (XR `PhysicsView` keys) |
 //! | `GET /api/graph/settlement` | XR settlement body |
+//! | `GET /api/graph/ontology-refs` | every `@ontology` annotation as `[{key, id, path, line, iri}]` (VisionClaw ADR-2164 D3) |
 //! | `WS /ws/positions`, `/ws/events`, `/wss`, `/ws/voice` | see [`ws`] and [`voice`] |
 //! | `WS /ws/presence` | XR avatar rooms, see [`presence`] |
 //!
@@ -22,6 +23,7 @@ use std::sync::Arc;
 
 use actix_web::{web, HttpRequest, HttpResponse};
 use codescape_collab::{command_from_llm, command_schema, parse_command, ParseError};
+use codescape_ingest::annotations::AnnotationTable;
 use codescape_model::events::QueryResult;
 use codescape_model::{lod, GraphSnapshot, Tier};
 use codescape_server::{now_ms, VERSION};
@@ -294,7 +296,8 @@ async fn run_command_inner(
 ) -> Result<(QueryResult, Effect), String> {
     // Jev option (VC-39-S1-01): consulted only on a grammar NoMatch; any miss leaves
     // the grammar result untouched so the Loom path below is exactly as before.
-    let parsed = codescape_server::voice::jev::after_grammar(parse_command(text), st.jev.as_ref()).await;
+    let parsed =
+        codescape_server::voice::jev::after_grammar(parse_command(text), st.jev.as_ref()).await;
     let cmd = match parsed {
         Ok(c) => Some((c, None)),
         Err(ParseError::Empty) => return Err("Say or type a command.".into()),
@@ -402,6 +405,38 @@ async fn settlement(st: web::Data<AppState>, q: web::Query<RepoQuery>) -> HttpRe
     }))
 }
 
+/// `[{key, id, path, line, iri}]` for every bound annotation, sorted by path,
+/// line, IRI and node. `key` and `id` name the node the annotation binds to (a
+/// symbol, or the file); file roll-ups are not repeated here.
+pub fn ontology_refs_body(snapshot: &GraphSnapshot, table: &AnnotationTable) -> serde_json::Value {
+    let index = snapshot.index();
+    serde_json::Value::Array(
+        table
+            .annotations()
+            .iter()
+            .filter_map(|a| {
+                let n = &snapshot.nodes[*index.get(&a.node)?];
+                Some(json!({
+                    "key": n.key.as_ref(),
+                    "id": a.node,
+                    "path": a.path.as_ref(),
+                    "line": a.line,
+                    "iri": a.iri.as_ref(),
+                }))
+            })
+            .collect(),
+    )
+}
+
+async fn ontology_refs(st: web::Data<AppState>, q: web::Query<RepoQuery>) -> HttpResponse {
+    let repo = match repo_or_404(&st, q.repo.as_deref()) {
+        Ok(r) => r,
+        Err(e) => return *e,
+    };
+    let p = repo.current();
+    HttpResponse::Ok().json(ontology_refs_body(&p.snapshot, &p.annotations))
+}
+
 /// Register every main-port route except static files.
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.route("/api/health", web::get().to(health))
@@ -411,6 +446,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
         .route("/api/graph/query", web::post().to(query))
         .route("/api/settings/physics", web::get().to(physics))
         .route("/api/graph/settlement", web::get().to(settlement))
+        .route("/api/graph/ontology-refs", web::get().to(ontology_refs))
         .route("/ws/positions", web::get().to(ws::positions))
         .route("/ws/events", web::get().to(ws::events))
         .route("/wss", web::get().to(ws::wss))
@@ -479,6 +515,53 @@ mod tests {
             let (cmd, _) = command_from_llm(&v).unwrap_or_else(|e| panic!("{ex}: {e}"));
             assert!(cmd.is_some(), "{ex}");
         }
+    }
+
+    #[test]
+    fn ontology_refs_route_lists_every_bound_annotation() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("src")).unwrap();
+        // Single-line text, so Codescape never reads this test as an annotation.
+        std::fs::write(
+            dir.path().join("src/a.rs"),
+            "// @ontology urn:ngm:class:sparql\n\n/// @ontology urn:ngm:class:bm25 urn:ngm:class:embedding\nfn f() {}\n",
+        )
+        .unwrap();
+        let mut f = n(2, NodeKind::File, Tier::L1, 1);
+        f.span = None;
+        let mut sym = n(3, NodeKind::Function, Tier::L2, 2);
+        sym.span = Some(codescape_model::Span {
+            start_line: 4,
+            end_line: 4,
+        });
+        let s = GraphSnapshot {
+            repo: Arc::from("t"),
+            epoch: 1,
+            revision: 1,
+            generated_at_ms: 0,
+            nodes: vec![n(1, NodeKind::Directory, Tier::L0, 0), f, sym],
+            edges: vec![],
+        };
+        let table = AnnotationTable::scan(dir.path(), &s);
+        let body = ontology_refs_body(&s, &table);
+        assert_eq!(
+            body,
+            json!([
+                {"key": "k2", "id": 2, "path": "src/a.rs", "line": 1, "iri": "urn:ngm:class:sparql"},
+                {"key": "k3", "id": 3, "path": "src/a.rs", "line": 3, "iri": "urn:ngm:class:bm25"},
+                {"key": "k3", "id": 3, "path": "src/a.rs", "line": 3, "iri": "urn:ngm:class:embedding"},
+            ])
+        );
+        // The stream carries the roll-up on the file and the symbol's own refs.
+        assert_eq!(
+            table.refs_for(2),
+            Some("urn:ngm:class:bm25#L3 urn:ngm:class:embedding#L3 urn:ngm:class:sparql#L1")
+        );
+        assert_eq!(
+            table.refs_for(3),
+            Some("urn:ngm:class:bm25#L3 urn:ngm:class:embedding#L3")
+        );
+        assert_eq!(table.refs_for(1), None);
     }
 
     #[test]

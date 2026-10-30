@@ -6,7 +6,7 @@
 //! presence kinds onto the existing `0x23` [`AgentActionType`] values (no new
 //! values).
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use codescape_model::events::PresenceKind;
 use codescape_model::wire::AgentActionType;
@@ -15,12 +15,18 @@ use serde_json::{json, Value};
 
 /// Build the `initialGraphLoad` text frame for the nodes in `ids`.
 ///
-/// Node shape: `{id, metadata_id, label, node_type, metadata:{source_file, domain, file_size, type}}`.
+/// Node shape: `{id, metadata_id, label, node_type, metadata:{source_file, domain, file_size, type,
+/// community, tier, ontology_refs?}}`.
 /// Edge shape: `{id, source_id, target_id, weight, edge_type}`. Only edges with both ends
 /// in `ids` are included, so the XR edge table never references an unknown node.
+///
+/// `ontology_refs` (VisionClaw ADR-2164 D3) is the node's entry in `refs`: a
+/// space-separated `<iri>#L<line>` list, present only on annotated nodes. A new
+/// key in the existing `metadata` object, not a new wire format.
 pub fn initial_graph_load(
     snapshot: &GraphSnapshot,
     ids: &HashSet<u32>,
+    refs: &HashMap<u32, String>,
     timestamp_ms: u64,
 ) -> Value {
     let nodes: Vec<Value> = snapshot
@@ -28,7 +34,7 @@ pub fn initial_graph_load(
         .iter()
         .filter(|n| ids.contains(&n.id))
         .map(|n| {
-            json!({
+            let mut v = json!({
                 "id": n.id,
                 "metadata_id": n.key.as_ref(),
                 "label": n.label.as_ref(),
@@ -41,7 +47,11 @@ pub fn initial_graph_load(
                     "community": n.community,
                     "tier": n.tier,
                 },
-            })
+            });
+            if let Some(r) = refs.get(&n.id).filter(|r| !r.is_empty()) {
+                v["metadata"]["ontology_refs"] = Value::String(r.clone());
+            }
+            v
         })
         .collect();
     let edges: Vec<Value> = snapshot
@@ -214,7 +224,7 @@ mod tests {
     fn initial_graph_load_parses_with_the_xr_expectations() {
         let s = snapshot();
         let ids: HashSet<u32> = [1, 2].into_iter().collect();
-        let text = initial_graph_load(&s, &ids, 1234).to_string();
+        let text = initial_graph_load(&s, &ids, &HashMap::new(), 1234).to_string();
         let (edges, nodes) = xr_parse(&text).expect("XR parser accepts the frame");
         assert_eq!(nodes.len(), 2);
         assert_eq!(
@@ -233,6 +243,51 @@ mod tests {
             vec![(1, 2, 1.0, "imports".into())],
             "edges into unprojected nodes are dropped"
         );
+    }
+
+    #[test]
+    fn ontology_refs_ride_only_on_annotated_nodes() {
+        let s = snapshot();
+        let ids: HashSet<u32> = [1, 2, 3].into_iter().collect();
+        let refs: HashMap<u32, String> = [
+            (
+                1,
+                "urn:ngm:class:bm25#L4 urn:ngm:class:sparql#L9".to_string(),
+            ),
+            (3, "urn:ngm:class:bm25#L4".to_string()),
+            (2, String::new()),
+            (99, "urn:ngm:class:embedding#L1".to_string()),
+        ]
+        .into_iter()
+        .collect();
+        let v = initial_graph_load(&s, &ids, &refs, 1);
+        let by_id = |id: u64| {
+            v["nodes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|n| n["id"] == id)
+                .unwrap()
+                .clone()
+        };
+        assert_eq!(
+            by_id(1)["metadata"]["ontology_refs"],
+            "urn:ngm:class:bm25#L4 urn:ngm:class:sparql#L9",
+            "annotated file node, with its roll-up"
+        );
+        assert_eq!(
+            by_id(3)["metadata"]["ontology_refs"],
+            "urn:ngm:class:bm25#L4",
+            "annotated symbol node"
+        );
+        assert!(
+            by_id(2)["metadata"].get("ontology_refs").is_none(),
+            "an empty entry is omitted"
+        );
+        // The frame still satisfies the XR parser.
+        assert!(xr_parse(&v.to_string()).is_some());
+        // A node outside the projection never leaks its refs into the frame.
+        assert!(!v.to_string().contains("embedding"));
     }
 
     #[test]
