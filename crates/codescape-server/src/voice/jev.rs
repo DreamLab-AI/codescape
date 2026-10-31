@@ -27,10 +27,10 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use std::future::Future;
-use std::pin::Pin;
 use codescape_collab::Command;
 use serde_json::{json, Value};
+use std::future::Future;
+use std::pin::Pin;
 
 use crate::egress::EgressAllowlist;
 
@@ -88,15 +88,27 @@ impl Fallback {
 /// Derived from the grammar's own `Command` variants; nothing here takes an argument.
 pub fn offered() -> Vec<(&'static str, &'static str, Command)> {
     vec![
-        ("show_all", "Clear every filter and show the whole graph again.", Command::ShowAll),
-        ("hide_tests", "Hide test files and test symbols.", Command::HideTests),
+        (
+            "show_all",
+            "Clear every filter and show the whole graph again.",
+            Command::ShowAll,
+        ),
+        (
+            "hide_tests",
+            "Hide test files and test symbols.",
+            Command::HideTests,
+        ),
         ("zoom_in", "Move the camera closer.", Command::ZoomIn),
         ("zoom_out", "Move the camera away.", Command::ZoomOut),
         ("overview", "Frame the whole graph.", Command::Overview),
         ("back", "Go back to the previous focus.", Command::Back),
         ("replay", "Replay the recorded timeline.", Command::Replay),
         ("live", "Return to the live view.", Command::Live),
-        ("stop_following", "Stop following an actor.", Command::StopFollowing),
+        (
+            "stop_following",
+            "Stop following an actor.",
+            Command::StopFollowing,
+        ),
         ("help", "List what can be said.", Command::Help),
     ]
 }
@@ -135,7 +147,10 @@ fn val(l: Lookup<'_>, k: &str) -> Option<String> {
 }
 
 fn truthy(l: Lookup<'_>, k: &str) -> bool {
-    matches!(val(l, k).map(|s| s.to_ascii_lowercase()).as_deref(), Some("1") | Some("true"))
+    matches!(
+        val(l, k).map(|s| s.to_ascii_lowercase()).as_deref(),
+        Some("1") | Some("true")
+    )
 }
 
 fn systemone_url(base: &str) -> String {
@@ -186,10 +201,18 @@ pub fn resolve(l: Lookup<'_>) -> Result<Resolved, Fallback> {
         return Err(Fallback::NoEndpoint);
     }
     if truthy(l, "AGENTBOX_SYSTEM_ONE_PROXY") {
-        let ep = val(l, "AGENTBOX_SYSTEM_ONE_ENDPOINT").or_else(|| val(l, "AGENTBOX_SKILL_ROUTE_API"));
-        let model = val(l, "AGENTBOX_SYSTEM_ONE_MODEL").or_else(|| val(l, "AGENTBOX_SKILL_ROUTE_MODEL"));
+        let ep =
+            val(l, "AGENTBOX_SYSTEM_ONE_ENDPOINT").or_else(|| val(l, "AGENTBOX_SKILL_ROUTE_API"));
+        let model =
+            val(l, "AGENTBOX_SYSTEM_ONE_MODEL").or_else(|| val(l, "AGENTBOX_SKILL_ROUTE_MODEL"));
         if let (Some(ep), Some(model)) = (ep, model) {
-            return Ok(Resolved { url: systemone_url(&ep), model, bearer: None, timeout, min_confidence });
+            return Ok(Resolved {
+                url: systemone_url(&ep),
+                model,
+                bearer: None,
+                timeout,
+                min_confidence,
+            });
         }
     }
     if let Some(key) = val(l, "TYPESAFE_API_KEY") {
@@ -255,8 +278,13 @@ pub type PostFuture<'a> = Pin<Box<dyn Future<Output = Result<Raw, TransportError
 /// HTTP seam, mockable in tests.
 pub trait Transport: Send + Sync {
     /// POST `body` as JSON.
-    fn post<'a>(&'a self, url: &'a str, bearer: Option<&'a str>, body: &'a Value, deadline: Duration)
-        -> PostFuture<'a>;
+    fn post<'a>(
+        &'a self,
+        url: &'a str,
+        bearer: Option<&'a str>,
+        body: &'a Value,
+        deadline: Duration,
+    ) -> PostFuture<'a>;
 }
 
 /// reqwest transport through the egress allowlist.
@@ -268,13 +296,21 @@ pub struct HttpTransport {
 impl HttpTransport {
     /// Build over `allow`.
     pub fn new(allow: &EgressAllowlist) -> Self {
-        Self { http: allow.http_client(Duration::from_millis(MAX_TIMEOUT_MS)), allow: allow.clone() }
+        Self {
+            http: allow.http_client(Duration::from_millis(MAX_TIMEOUT_MS)),
+            allow: allow.clone(),
+        }
     }
 }
 
 impl Transport for HttpTransport {
-    fn post<'a>(&'a self, url: &'a str, bearer: Option<&'a str>, body: &'a Value, deadline: Duration)
-        -> PostFuture<'a> {
+    fn post<'a>(
+        &'a self,
+        url: &'a str,
+        bearer: Option<&'a str>,
+        body: &'a Value,
+        deadline: Duration,
+    ) -> PostFuture<'a> {
         Box::pin(async move {
             self.allow.check(url).map_err(|_| TransportError::Other)?;
             let mut rb = self.http.post(url).timeout(deadline).json(body);
@@ -282,7 +318,11 @@ impl Transport for HttpTransport {
                 rb = rb.bearer_auth(b);
             }
             let r = rb.send().await.map_err(|e| {
-                if e.is_timeout() { TransportError::Timeout } else { TransportError::Other }
+                if e.is_timeout() {
+                    TransportError::Timeout
+                } else {
+                    TransportError::Other
+                }
             })?;
             let status = r.status().as_u16();
             let body = r.text().await.map_err(|_| TransportError::Other)?;
@@ -301,7 +341,10 @@ impl JevClient {
     /// `Some` when the option is enabled and an endpoint resolves.
     pub fn from_lookup(l: Lookup<'_>, allow: &EgressAllowlist) -> Option<Self> {
         match resolve(l) {
-            Ok(resolved) => Some(Self { resolved, transport: Arc::new(HttpTransport::new(allow)) }),
+            Ok(resolved) => Some(Self {
+                resolved,
+                transport: Arc::new(HttpTransport::new(allow)),
+            }),
             Err(Fallback::FlagOff) => None,
             Err(e) => {
                 tracing::info!(reason = %e.label(), "Jev option unavailable");
@@ -312,7 +355,10 @@ impl JevClient {
 
     /// With an explicit transport (tests).
     pub fn with_transport(resolved: Resolved, transport: Arc<dyn Transport>) -> Self {
-        Self { resolved, transport }
+        Self {
+            resolved,
+            transport,
+        }
     }
 
     /// Pick one offered command for `utterance`, or say why not.
@@ -322,7 +368,12 @@ impl JevClient {
     pub async fn pick(&self, utterance: &str) -> Result<Command, Fallback> {
         let body = build_request(&self.resolved.model, utterance);
         let deadline = self.resolved.timeout;
-        let call = self.transport.post(&self.resolved.url, self.resolved.bearer.as_deref(), &body, deadline);
+        let call = self.transport.post(
+            &self.resolved.url,
+            self.resolved.bearer.as_deref(),
+            &body,
+            deadline,
+        );
         let raw = match tokio::time::timeout(deadline, call).await {
             Err(_) | Ok(Err(TransportError::Timeout)) => return Err(Fallback::Timeout),
             Ok(Err(TransportError::Other)) => return Err(Fallback::Transport),
@@ -332,11 +383,16 @@ impl JevClient {
             return Err(Fallback::Http(raw.status));
         }
         let v: Value = serde_json::from_str(&raw.body).map_err(|_| Fallback::Malformed)?;
-        let a = v.pointer(&format!("/answers/{QUESTION_ID}")).ok_or(Fallback::Malformed)?;
+        let a = v
+            .pointer(&format!("/answers/{QUESTION_ID}"))
+            .ok_or(Fallback::Malformed)?;
         if a.get("type").and_then(Value::as_str) != Some("choice") {
             return Err(Fallback::Malformed);
         }
-        let key = a.get("choice").and_then(Value::as_str).ok_or(Fallback::Malformed)?;
+        let key = a
+            .get("choice")
+            .and_then(Value::as_str)
+            .ok_or(Fallback::Malformed)?;
         let confidence = a
             .get("confidence")
             .and_then(Value::as_f64)
@@ -345,7 +401,11 @@ impl JevClient {
         if key == NONE_KEY {
             return Err(Fallback::None);
         }
-        let cmd = offered().into_iter().find(|(k, _, _)| *k == key).map(|(_, _, c)| c).ok_or(Fallback::Malformed)?;
+        let cmd = offered()
+            .into_iter()
+            .find(|(k, _, _)| *k == key)
+            .map(|(_, _, c)| c)
+            .ok_or(Fallback::Malformed)?;
         if confidence < self.resolved.min_confidence {
             return Err(Fallback::LowConfidence);
         }
@@ -378,7 +438,8 @@ pub async fn after_grammar(
 ) -> Result<Command, codescape_collab::ParseError> {
     use codescape_collab::ParseError;
     match (&parsed, jev) {
-        (Err(ParseError::NoMatch { normalised }), Some(j)) => match j.pick_logged(normalised).await {
+        (Err(ParseError::NoMatch { normalised }), Some(j)) => match j.pick_logged(normalised).await
+        {
             Some(c) => Ok(c),
             None => parsed,
         },
@@ -405,17 +466,30 @@ pub(crate) mod testing {
 
     impl Mock {
         pub fn new(script: Script) -> Arc<Self> {
-            Arc::new(Self { script, seen: Mutex::new(vec![]), bearers: Mutex::new(vec![]) })
+            Arc::new(Self {
+                script,
+                seen: Mutex::new(vec![]),
+                bearers: Mutex::new(vec![]),
+            })
         }
     }
 
     impl Transport for Mock {
-        fn post<'a>(&'a self, _u: &'a str, bearer: Option<&'a str>, body: &'a Value, _d: Duration) -> PostFuture<'a> {
+        fn post<'a>(
+            &'a self,
+            _u: &'a str,
+            bearer: Option<&'a str>,
+            body: &'a Value,
+            _d: Duration,
+        ) -> PostFuture<'a> {
             self.seen.lock().unwrap().push(body.clone());
             self.bearers.lock().unwrap().push(bearer.map(String::from));
             Box::pin(async move {
                 match &self.script {
-                    Script::Reply(s, b) => Ok(Raw { status: *s, body: b.clone() }),
+                    Script::Reply(s, b) => Ok(Raw {
+                        status: *s,
+                        body: b.clone(),
+                    }),
                     Script::Fail(e) => Err(*e),
                     Script::Hang => {
                         tokio::time::sleep(Duration::from_secs(60)).await;
@@ -438,7 +512,10 @@ mod tests {
     use std::collections::HashMap;
 
     fn env(p: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> {
-        let m: HashMap<String, String> = p.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        let m: HashMap<String, String> = p
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
         move |k| m.get(k).cloned()
     }
 
@@ -456,7 +533,11 @@ mod tests {
 
     #[test]
     fn off_by_default_even_with_every_endpoint() {
-        let e = env(&[("TYPESAFE_API_KEY", "k"), ("CODESCAPE_JEV_ENDPOINT", "http://x"), ("AGENTBOX_SYSTEM_ONE_PROXY", "1")]);
+        let e = env(&[
+            ("TYPESAFE_API_KEY", "k"),
+            ("CODESCAPE_JEV_ENDPOINT", "http://x"),
+            ("AGENTBOX_SYSTEM_ONE_PROXY", "1"),
+        ]);
         assert_eq!(resolve(&e), Err(Fallback::FlagOff));
         assert_eq!(egress_url(&e), None);
     }
@@ -465,11 +546,18 @@ mod tests {
     fn local_only_by_default_and_allow_cloud_overrides() {
         let e = env(&[("CODESCAPE_JEV", "1"), ("TYPESAFE_API_KEY", "k")]);
         assert_eq!(resolve(&e), Err(Fallback::NoEndpoint));
-        let e = env(&[("CODESCAPE_JEV", "1"), ("TYPESAFE_API_KEY", "k"), ("CODESCAPE_JEV_ALLOW_CLOUD", "1")]);
+        let e = env(&[
+            ("CODESCAPE_JEV", "1"),
+            ("TYPESAFE_API_KEY", "k"),
+            ("CODESCAPE_JEV_ALLOW_CLOUD", "1"),
+        ]);
         let r = resolve(&e).unwrap();
         assert_eq!(r.url, DEFAULT_ENDPOINT);
         assert_eq!(r.bearer.as_deref(), Some("k"));
-        assert_eq!(r.min_confidence, 1.0, "accept nothing automatically by default");
+        assert_eq!(
+            r.min_confidence, 1.0,
+            "accept nothing automatically by default"
+        );
     }
 
     #[test]
@@ -483,7 +571,10 @@ mod tests {
             ("TYPESAFE_API_KEY", "k"),
         ]);
         let r = resolve(&e).unwrap();
-        assert_eq!((r.url.as_str(), r.model.as_str(), r.bearer), ("http://127.0.0.1:8097/v1/systemone", "jev-x", None));
+        assert_eq!(
+            (r.url.as_str(), r.model.as_str(), r.bearer),
+            ("http://127.0.0.1:8097/v1/systemone", "jev-x", None)
+        );
     }
 
     #[test]
@@ -509,7 +600,12 @@ mod tests {
         assert_eq!(v["state"]["utterance"], "put it all back");
         let q = &v["questions"][QUESTION_ID];
         assert_eq!(q["type"], "choice");
-        let keys: Vec<&str> = q["criteria"].as_object().unwrap().keys().map(String::as_str).collect();
+        let keys: Vec<&str> = q["criteria"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
         assert!(keys.contains(&NONE_KEY) && keys.contains(&"show_all"));
         assert_eq!(keys.len(), offered().len() + 1);
         for (_, _, c) in offered() {
@@ -532,9 +628,18 @@ mod tests {
     async fn every_failure_returns_no_command() {
         for (script, want) in [
             (Script::Reply(200, choice("none", 0.99)), Fallback::None),
-            (Script::Reply(200, choice("zoom_in", 0.5)), Fallback::LowConfidence),
-            (Script::Reply(200, choice("delete_everything", 0.99)), Fallback::Malformed),
-            (Script::Reply(200, choice("focus", 0.99)), Fallback::Malformed),
+            (
+                Script::Reply(200, choice("zoom_in", 0.5)),
+                Fallback::LowConfidence,
+            ),
+            (
+                Script::Reply(200, choice("delete_everything", 0.99)),
+                Fallback::Malformed,
+            ),
+            (
+                Script::Reply(200, choice("focus", 0.99)),
+                Fallback::Malformed,
+            ),
             (Script::Reply(200, "not json".into()), Fallback::Malformed),
             (Script::Reply(200, "{}".into()), Fallback::Malformed),
             (Script::Reply(429, "{}".into()), Fallback::Http(429)),
@@ -558,15 +663,28 @@ mod tests {
         let (c, m) = client(Script::Reply(200, choice("help", 1.0)), 0.0);
         let (mut ok, mut empty) = (0, 0);
         for u in [
-            "zoom in", "zoom out", "overview", "show all", "hide tests", "go back", "help",
-            "callers of main", "explain this", "", "   ", "show only", "rewind 0 seconds",
+            "zoom in",
+            "zoom out",
+            "overview",
+            "show all",
+            "hide tests",
+            "go back",
+            "help",
+            "callers of main",
+            "explain this",
+            "",
+            "   ",
+            "show only",
+            "rewind 0 seconds",
             "callers of main depth 99",
         ] {
             let before = parse_command(u);
             match &before {
                 Ok(_) => ok += 1,
                 Err(ParseError::Empty) => empty += 1,
-                Err(ParseError::Invalid { .. }) => unreachable!("parse_command never yields Invalid"),
+                Err(ParseError::Invalid { .. }) => {
+                    unreachable!("parse_command never yields Invalid")
+                }
                 Err(ParseError::NoMatch { .. }) => continue, // Jev may legitimately act here
             }
             let after = after_grammar(parse_command(u), Some(&c)).await;
@@ -575,9 +693,14 @@ mod tests {
         assert!(ok > 0 && empty > 0, "ok={ok} empty={empty}");
         // `Invalid` only comes from validated model replies, never from the grammar:
         // built by hand, it must pass through untouched.
-        let inv = Err(ParseError::Invalid { reason: "depth".into() });
+        let inv = Err(ParseError::Invalid {
+            reason: "depth".into(),
+        });
         assert_eq!(after_grammar(inv.clone(), Some(&c)).await, inv);
-        assert!(m.seen.lock().unwrap().is_empty(), "Jev was consulted off the NoMatch path");
+        assert!(
+            m.seen.lock().unwrap().is_empty(),
+            "Jev was consulted off the NoMatch path"
+        );
     }
 
     #[tokio::test]
@@ -585,7 +708,11 @@ mod tests {
         let u = "please make the picture bigger somehow";
         let before = parse_command(u);
         assert!(matches!(before, Err(ParseError::NoMatch { .. })));
-        assert_eq!(after_grammar(parse_command(u), None).await, before, "flag off / no endpoint");
+        assert_eq!(
+            after_grammar(parse_command(u), None).await,
+            before,
+            "flag off / no endpoint"
+        );
         for script in [
             Script::Reply(200, choice("none", 0.99)),
             Script::Reply(200, choice("zoom_in", 0.1)),
