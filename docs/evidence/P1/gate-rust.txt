@@ -1,0 +1,855 @@
+# Codescape P1 gate (ADR-2143 / ADR-0001 follow-on)
+date:          2026-10-31T16:14:55Z
+host:          agentbox (Linux 7.3.0-2-cachyos)
+rustc:         rustc 1.99.1 (58cf8f9c3 2026-10-13)
+node / npm:    v22.23.3 / 10.9.9
+source sha:    0256a85282ff118214403a574bd8b07cd5e41c16 (chore: ignore local agent state (.claude-flow/))
+graphicle:     003f93605d895ed69f0cf06690dd296474385b99
+Cargo.lock sha256: 5d26946461577a69ab2cfa972344ea1a24de476b9ec36021126577503b6d9424
+CARGO_TARGET_DIR=/home/devuser/workspace/codescape/target
+
+================================================================
+$ cargo fmt --all --check
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:27:
+ use std::sync::Arc;
+ use std::time::Duration;
+ 
+[31m-use std::future::Future;
+[0m[31m-use std::pin::Pin;
+[0m use codescape_collab::Command;
+ use serde_json::{json, Value};
+[32m+use std::future::Future;
+[0m[32m+use std::pin::Pin;
+[0m 
+ use crate::egress::EgressAllowlist;
+ 
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:88:
+ /// Derived from the grammar's own `Command` variants; nothing here takes an argument.
+ pub fn offered() -> Vec<(&'static str, &'static str, Command)> {
+     vec![
+[31m-        ("show_all", "Clear every filter and show the whole graph again.", Command::ShowAll),
+[0m[31m-        ("hide_tests", "Hide test files and test symbols.", Command::HideTests),
+[0m[32m+        (
+[0m[32m+            "show_all",
+[0m[32m+            "Clear every filter and show the whole graph again.",
+[0m[32m+            Command::ShowAll,
+[0m[32m+        ),
+[0m[32m+        (
+[0m[32m+            "hide_tests",
+[0m[32m+            "Hide test files and test symbols.",
+[0m[32m+            Command::HideTests,
+[0m[32m+        ),
+[0m         ("zoom_in", "Move the camera closer.", Command::ZoomIn),
+         ("zoom_out", "Move the camera away.", Command::ZoomOut),
+         ("overview", "Frame the whole graph.", Command::Overview),
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:96:
+         ("back", "Go back to the previous focus.", Command::Back),
+         ("replay", "Replay the recorded timeline.", Command::Replay),
+         ("live", "Return to the live view.", Command::Live),
+[31m-        ("stop_following", "Stop following an actor.", Command::StopFollowing),
+[0m[32m+        (
+[0m[32m+            "stop_following",
+[0m[32m+            "Stop following an actor.",
+[0m[32m+            Command::StopFollowing,
+[0m[32m+        ),
+[0m         ("help", "List what can be said.", Command::Help),
+     ]
+ }
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:135:
+ }
+ 
+ fn truthy(l: Lookup<'_>, k: &str) -> bool {
+[31m-    matches!(val(l, k).map(|s| s.to_ascii_lowercase()).as_deref(), Some("1") | Some("true"))
+[0m[32m+    matches!(
+[0m[32m+        val(l, k).map(|s| s.to_ascii_lowercase()).as_deref(),
+[0m[32m+        Some("1") | Some("true")
+[0m[32m+    )
+[0m }
+ 
+ fn systemone_url(base: &str) -> String {
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:186:
+         return Err(Fallback::NoEndpoint);
+     }
+     if truthy(l, "AGENTBOX_SYSTEM_ONE_PROXY") {
+[31m-        let ep = val(l, "AGENTBOX_SYSTEM_ONE_ENDPOINT").or_else(|| val(l, "AGENTBOX_SKILL_ROUTE_API"));
+[0m[31m-        let model = val(l, "AGENTBOX_SYSTEM_ONE_MODEL").or_else(|| val(l, "AGENTBOX_SKILL_ROUTE_MODEL"));
+[0m[32m+        let ep =
+[0m[32m+            val(l, "AGENTBOX_SYSTEM_ONE_ENDPOINT").or_else(|| val(l, "AGENTBOX_SKILL_ROUTE_API"));
+[0m[32m+        let model =
+[0m[32m+            val(l, "AGENTBOX_SYSTEM_ONE_MODEL").or_else(|| val(l, "AGENTBOX_SKILL_ROUTE_MODEL"));
+[0m         if let (Some(ep), Some(model)) = (ep, model) {
+[31m-            return Ok(Resolved { url: systemone_url(&ep), model, bearer: None, timeout, min_confidence });
+[0m[32m+            return Ok(Resolved {
+[0m[32m+                url: systemone_url(&ep),
+[0m[32m+                model,
+[0m[32m+                bearer: None,
+[0m[32m+                timeout,
+[0m[32m+                min_confidence,
+[0m[32m+            });
+[0m         }
+     }
+     if let Some(key) = val(l, "TYPESAFE_API_KEY") {
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:255:
+ /// HTTP seam, mockable in tests.
+ pub trait Transport: Send + Sync {
+     /// POST `body` as JSON.
+[31m-    fn post<'a>(&'a self, url: &'a str, bearer: Option<&'a str>, body: &'a Value, deadline: Duration)
+[0m[31m-        -> PostFuture<'a>;
+[0m[32m+    fn post<'a>(
+[0m[32m+        &'a self,
+[0m[32m+        url: &'a str,
+[0m[32m+        bearer: Option<&'a str>,
+[0m[32m+        body: &'a Value,
+[0m[32m+        deadline: Duration,
+[0m[32m+    ) -> PostFuture<'a>;
+[0m }
+ 
+ /// reqwest transport through the egress allowlist.
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:268:
+ impl HttpTransport {
+     /// Build over `allow`.
+     pub fn new(allow: &EgressAllowlist) -> Self {
+[31m-        Self { http: allow.http_client(Duration::from_millis(MAX_TIMEOUT_MS)), allow: allow.clone() }
+[0m[32m+        Self {
+[0m[32m+            http: allow.http_client(Duration::from_millis(MAX_TIMEOUT_MS)),
+[0m[32m+            allow: allow.clone(),
+[0m[32m+        }
+[0m     }
+ }
+ 
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:275:
+ impl Transport for HttpTransport {
+[31m-    fn post<'a>(&'a self, url: &'a str, bearer: Option<&'a str>, body: &'a Value, deadline: Duration)
+[0m[31m-        -> PostFuture<'a> {
+[0m[32m+    fn post<'a>(
+[0m[32m+        &'a self,
+[0m[32m+        url: &'a str,
+[0m[32m+        bearer: Option<&'a str>,
+[0m[32m+        body: &'a Value,
+[0m[32m+        deadline: Duration,
+[0m[32m+    ) -> PostFuture<'a> {
+[0m         Box::pin(async move {
+             self.allow.check(url).map_err(|_| TransportError::Other)?;
+             let mut rb = self.http.post(url).timeout(deadline).json(body);
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:282:
+                 rb = rb.bearer_auth(b);
+             }
+             let r = rb.send().await.map_err(|e| {
+[31m-                if e.is_timeout() { TransportError::Timeout } else { TransportError::Other }
+[0m[32m+                if e.is_timeout() {
+[0m[32m+                    TransportError::Timeout
+[0m[32m+                } else {
+[0m[32m+                    TransportError::Other
+[0m[32m+                }
+[0m             })?;
+             let status = r.status().as_u16();
+             let body = r.text().await.map_err(|_| TransportError::Other)?;
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:301:
+     /// `Some` when the option is enabled and an endpoint resolves.
+     pub fn from_lookup(l: Lookup<'_>, allow: &EgressAllowlist) -> Option<Self> {
+         match resolve(l) {
+[31m-            Ok(resolved) => Some(Self { resolved, transport: Arc::new(HttpTransport::new(allow)) }),
+[0m[32m+            Ok(resolved) => Some(Self {
+[0m[32m+                resolved,
+[0m[32m+                transport: Arc::new(HttpTransport::new(allow)),
+[0m[32m+            }),
+[0m             Err(Fallback::FlagOff) => None,
+             Err(e) => {
+                 tracing::info!(reason = %e.label(), "Jev option unavailable");
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:312:
+ 
+     /// With an explicit transport (tests).
+     pub fn with_transport(resolved: Resolved, transport: Arc<dyn Transport>) -> Self {
+[31m-        Self { resolved, transport }
+[0m[32m+        Self {
+[0m[32m+            resolved,
+[0m[32m+            transport,
+[0m[32m+        }
+[0m     }
+ 
+     /// Pick one offered command for `utterance`, or say why not.
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:322:
+     pub async fn pick(&self, utterance: &str) -> Result<Command, Fallback> {
+         let body = build_request(&self.resolved.model, utterance);
+         let deadline = self.resolved.timeout;
+[31m-        let call = self.transport.post(&self.resolved.url, self.resolved.bearer.as_deref(), &body, deadline);
+[0m[32m+        let call = self.transport.post(
+[0m[32m+            &self.resolved.url,
+[0m[32m+            self.resolved.bearer.as_deref(),
+[0m[32m+            &body,
+[0m[32m+            deadline,
+[0m[32m+        );
+[0m         let raw = match tokio::time::timeout(deadline, call).await {
+             Err(_) | Ok(Err(TransportError::Timeout)) => return Err(Fallback::Timeout),
+             Ok(Err(TransportError::Other)) => return Err(Fallback::Transport),
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:332:
+             return Err(Fallback::Http(raw.status));
+         }
+         let v: Value = serde_json::from_str(&raw.body).map_err(|_| Fallback::Malformed)?;
+[31m-        let a = v.pointer(&format!("/answers/{QUESTION_ID}")).ok_or(Fallback::Malformed)?;
+[0m[32m+        let a = v
+[0m[32m+            .pointer(&format!("/answers/{QUESTION_ID}"))
+[0m[32m+            .ok_or(Fallback::Malformed)?;
+[0m         if a.get("type").and_then(Value::as_str) != Some("choice") {
+             return Err(Fallback::Malformed);
+         }
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:339:
+[31m-        let key = a.get("choice").and_then(Value::as_str).ok_or(Fallback::Malformed)?;
+[0m[32m+        let key = a
+[0m[32m+            .get("choice")
+[0m[32m+            .and_then(Value::as_str)
+[0m[32m+            .ok_or(Fallback::Malformed)?;
+[0m         let confidence = a
+             .get("confidence")
+             .and_then(Value::as_f64)
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:345:
+         if key == NONE_KEY {
+             return Err(Fallback::None);
+         }
+[31m-        let cmd = offered().into_iter().find(|(k, _, _)| *k == key).map(|(_, _, c)| c).ok_or(Fallback::Malformed)?;
+[0m[32m+        let cmd = offered()
+[0m[32m+            .into_iter()
+[0m[32m+            .find(|(k, _, _)| *k == key)
+[0m[32m+            .map(|(_, _, c)| c)
+[0m[32m+            .ok_or(Fallback::Malformed)?;
+[0m         if confidence < self.resolved.min_confidence {
+             return Err(Fallback::LowConfidence);
+         }
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:378:
+ ) -> Result<Command, codescape_collab::ParseError> {
+     use codescape_collab::ParseError;
+     match (&parsed, jev) {
+[31m-        (Err(ParseError::NoMatch { normalised }), Some(j)) => match j.pick_logged(normalised).await {
+[0m[32m+        (Err(ParseError::NoMatch { normalised }), Some(j)) => match j.pick_logged(normalised).await
+[0m[32m+        {
+[0m             Some(c) => Ok(c),
+             None => parsed,
+         },
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:405:
+ 
+     impl Mock {
+         pub fn new(script: Script) -> Arc<Self> {
+[31m-            Arc::new(Self { script, seen: Mutex::new(vec![]), bearers: Mutex::new(vec![]) })
+[0m[32m+            Arc::new(Self {
+[0m[32m+                script,
+[0m[32m+                seen: Mutex::new(vec![]),
+[0m[32m+                bearers: Mutex::new(vec![]),
+[0m[32m+            })
+[0m         }
+     }
+ 
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:412:
+     impl Transport for Mock {
+[31m-        fn post<'a>(&'a self, _u: &'a str, bearer: Option<&'a str>, body: &'a Value, _d: Duration) -> PostFuture<'a> {
+[0m[32m+        fn post<'a>(
+[0m[32m+            &'a self,
+[0m[32m+            _u: &'a str,
+[0m[32m+            bearer: Option<&'a str>,
+[0m[32m+            body: &'a Value,
+[0m[32m+            _d: Duration,
+[0m[32m+        ) -> PostFuture<'a> {
+[0m             self.seen.lock().unwrap().push(body.clone());
+             self.bearers.lock().unwrap().push(bearer.map(String::from));
+             Box::pin(async move {
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:417:
+                 match &self.script {
+[31m-                    Script::Reply(s, b) => Ok(Raw { status: *s, body: b.clone() }),
+[0m[32m+                    Script::Reply(s, b) => Ok(Raw {
+[0m[32m+                        status: *s,
+[0m[32m+                        body: b.clone(),
+[0m[32m+                    }),
+[0m                     Script::Fail(e) => Err(*e),
+                     Script::Hang => {
+                         tokio::time::sleep(Duration::from_secs(60)).await;
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:438:
+     use std::collections::HashMap;
+ 
+     fn env(p: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> {
+[31m-        let m: HashMap<String, String> = p.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+[0m[32m+        let m: HashMap<String, String> = p
+[0m[32m+            .iter()
+[0m[32m+            .map(|(k, v)| (k.to_string(), v.to_string()))
+[0m[32m+            .collect();
+[0m         move |k| m.get(k).cloned()
+     }
+ 
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:456:
+ 
+     #[test]
+     fn off_by_default_even_with_every_endpoint() {
+[31m-        let e = env(&[("TYPESAFE_API_KEY", "k"), ("CODESCAPE_JEV_ENDPOINT", "http://x"), ("AGENTBOX_SYSTEM_ONE_PROXY", "1")]);
+[0m[32m+        let e = env(&[
+[0m[32m+            ("TYPESAFE_API_KEY", "k"),
+[0m[32m+            ("CODESCAPE_JEV_ENDPOINT", "http://x"),
+[0m[32m+            ("AGENTBOX_SYSTEM_ONE_PROXY", "1"),
+[0m[32m+        ]);
+[0m         assert_eq!(resolve(&e), Err(Fallback::FlagOff));
+         assert_eq!(egress_url(&e), None);
+     }
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:465:
+     fn local_only_by_default_and_allow_cloud_overrides() {
+         let e = env(&[("CODESCAPE_JEV", "1"), ("TYPESAFE_API_KEY", "k")]);
+         assert_eq!(resolve(&e), Err(Fallback::NoEndpoint));
+[31m-        let e = env(&[("CODESCAPE_JEV", "1"), ("TYPESAFE_API_KEY", "k"), ("CODESCAPE_JEV_ALLOW_CLOUD", "1")]);
+[0m[32m+        let e = env(&[
+[0m[32m+            ("CODESCAPE_JEV", "1"),
+[0m[32m+            ("TYPESAFE_API_KEY", "k"),
+[0m[32m+            ("CODESCAPE_JEV_ALLOW_CLOUD", "1"),
+[0m[32m+        ]);
+[0m         let r = resolve(&e).unwrap();
+         assert_eq!(r.url, DEFAULT_ENDPOINT);
+         assert_eq!(r.bearer.as_deref(), Some("k"));
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:472:
+[31m-        assert_eq!(r.min_confidence, 1.0, "accept nothing automatically by default");
+[0m[32m+        assert_eq!(
+[0m[32m+            r.min_confidence, 1.0,
+[0m[32m+            "accept nothing automatically by default"
+[0m[32m+        );
+[0m     }
+ 
+     #[test]
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:483:
+             ("TYPESAFE_API_KEY", "k"),
+         ]);
+         let r = resolve(&e).unwrap();
+[31m-        assert_eq!((r.url.as_str(), r.model.as_str(), r.bearer), ("http://127.0.0.1:8097/v1/systemone", "jev-x", None));
+[0m[32m+        assert_eq!(
+[0m[32m+            (r.url.as_str(), r.model.as_str(), r.bearer),
+[0m[32m+            ("http://127.0.0.1:8097/v1/systemone", "jev-x", None)
+[0m[32m+        );
+[0m     }
+ 
+     #[test]
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:509:
+         assert_eq!(v["state"]["utterance"], "put it all back");
+         let q = &v["questions"][QUESTION_ID];
+         assert_eq!(q["type"], "choice");
+[31m-        let keys: Vec<&str> = q["criteria"].as_object().unwrap().keys().map(String::as_str).collect();
+[0m[32m+        let keys: Vec<&str> = q["criteria"]
+[0m[32m+            .as_object()
+[0m[32m+            .unwrap()
+[0m[32m+            .keys()
+[0m[32m+            .map(String::as_str)
+[0m[32m+            .collect();
+[0m         assert!(keys.contains(&NONE_KEY) && keys.contains(&"show_all"));
+         assert_eq!(keys.len(), offered().len() + 1);
+         for (_, _, c) in offered() {
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:532:
+     async fn every_failure_returns_no_command() {
+         for (script, want) in [
+             (Script::Reply(200, choice("none", 0.99)), Fallback::None),
+[31m-            (Script::Reply(200, choice("zoom_in", 0.5)), Fallback::LowConfidence),
+[0m[31m-            (Script::Reply(200, choice("delete_everything", 0.99)), Fallback::Malformed),
+[0m[31m-            (Script::Reply(200, choice("focus", 0.99)), Fallback::Malformed),
+[0m[32m+            (
+[0m[32m+                Script::Reply(200, choice("zoom_in", 0.5)),
+[0m[32m+                Fallback::LowConfidence,
+[0m[32m+            ),
+[0m[32m+            (
+[0m[32m+                Script::Reply(200, choice("delete_everything", 0.99)),
+[0m[32m+                Fallback::Malformed,
+[0m[32m+            ),
+[0m[32m+            (
+[0m[32m+                Script::Reply(200, choice("focus", 0.99)),
+[0m[32m+                Fallback::Malformed,
+[0m[32m+            ),
+[0m             (Script::Reply(200, "not json".into()), Fallback::Malformed),
+             (Script::Reply(200, "{}".into()), Fallback::Malformed),
+             (Script::Reply(429, "{}".into()), Fallback::Http(429)),
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:558:
+         let (c, m) = client(Script::Reply(200, choice("help", 1.0)), 0.0);
+         let (mut ok, mut empty) = (0, 0);
+         for u in [
+[31m-            "zoom in", "zoom out", "overview", "show all", "hide tests", "go back", "help",
+[0m[31m-            "callers of main", "explain this", "", "   ", "show only", "rewind 0 seconds",
+[0m[32m+            "zoom in",
+[0m[32m+            "zoom out",
+[0m[32m+            "overview",
+[0m[32m+            "show all",
+[0m[32m+            "hide tests",
+[0m[32m+            "go back",
+[0m[32m+            "help",
+[0m[32m+            "callers of main",
+[0m[32m+            "explain this",
+[0m[32m+            "",
+[0m[32m+            "   ",
+[0m[32m+            "show only",
+[0m[32m+            "rewind 0 seconds",
+[0m             "callers of main depth 99",
+         ] {
+             let before = parse_command(u);
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:566:
+             match &before {
+                 Ok(_) => ok += 1,
+                 Err(ParseError::Empty) => empty += 1,
+[31m-                Err(ParseError::Invalid { .. }) => unreachable!("parse_command never yields Invalid"),
+[0m[32m+                Err(ParseError::Invalid { .. }) => {
+[0m[32m+                    unreachable!("parse_command never yields Invalid")
+[0m[32m+                }
+[0m                 Err(ParseError::NoMatch { .. }) => continue, // Jev may legitimately act here
+             }
+             let after = after_grammar(parse_command(u), Some(&c)).await;
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:575:
+         assert!(ok > 0 && empty > 0, "ok={ok} empty={empty}");
+         // `Invalid` only comes from validated model replies, never from the grammar:
+         // built by hand, it must pass through untouched.
+[31m-        let inv = Err(ParseError::Invalid { reason: "depth".into() });
+[0m[32m+        let inv = Err(ParseError::Invalid {
+[0m[32m+            reason: "depth".into(),
+[0m[32m+        });
+[0m         assert_eq!(after_grammar(inv.clone(), Some(&c)).await, inv);
+[31m-        assert!(m.seen.lock().unwrap().is_empty(), "Jev was consulted off the NoMatch path");
+[0m[32m+        assert!(
+[0m[32m+            m.seen.lock().unwrap().is_empty(),
+[0m[32m+            "Jev was consulted off the NoMatch path"
+[0m[32m+        );
+[0m     }
+ 
+     #[tokio::test]
+Diff in /home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server/src/voice/jev.rs:585:
+         let u = "please make the picture bigger somehow";
+         let before = parse_command(u);
+         assert!(matches!(before, Err(ParseError::NoMatch { .. })));
+[31m-        assert_eq!(after_grammar(parse_command(u), None).await, before, "flag off / no endpoint");
+[0m[32m+        assert_eq!(
+[0m[32m+            after_grammar(parse_command(u), None).await,
+[0m[32m+            before,
+[0m[32m+            "flag off / no endpoint"
+[0m[32m+        );
+[0m         for script in [
+             Script::Reply(200, choice("none", 0.99)),
+             Script::Reply(200, choice("zoom_in", 0.1)),
+exit=1
+
+================================================================
+$ cargo clippy --workspace --all-targets --locked -- -D warnings
+    Checking codescape-model v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-model)
+    Checking bit-vec v0.10.1
+    Checking quick-error v1.2.3
+    Checking rand_xorshift v0.5.0
+    Checking unarray v0.1.4
+    Checking rusty-fork v0.3.1
+    Checking bit-set v0.11.1
+    Checking proptest v1.12.0
+    Checking codescape-collab v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-collab)
+    Checking codescape-layout v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-layout)
+    Checking codescape-ingest v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-ingest)
+    Checking codescape-server v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.95s
+exit=0
+
+================================================================
+$ cargo test --workspace --locked
+   Compiling codescape-layout v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-layout)
+   Compiling codescape-collab v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-collab)
+   Compiling codescape-model v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-model)
+   Compiling codescape-ingest v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-ingest)
+   Compiling codescape-server v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.63s
+     Running unittests src/lib.rs (/home/devuser/workspace/codescape/target/debug/deps/codescape_collab-7e4ec72011a2824b)
+
+running 39 tests
+test actors::tests::heat_clamps_at_one ... ok
+test actors::tests::recent_focus_and_staleness ... ok
+test actors::tests::heat_decay_numbers ... ok
+test actors::tests::remove_drops_actor_and_history_but_not_others ... ok
+test actors::tests::stale_actor_heat_is_below_floor_before_eviction ... ok
+test actors::tests::upsert_refreshes_without_rewinding ... ok
+test floor::tests::busy_demotes_holder_and_blocks_promotion ... ok
+test floor::tests::busy_with_empty_queue_then_free ... ok
+test floor::tests::expiry_is_applied_lazily_by_request ... ok
+test floor::tests::fifo_sequence ... ok
+test floor::tests::hold_cap_expiry_promotes_and_restarts_clock ... ok
+test floor::tests::non_holder_release_dequeues ... ok
+test fuzzy::tests::edge_cases ... ok
+test grammar::tests::depth_suffixes ... ok
+test fuzzy::tests::spoken_form_matches_identifier ... ok
+test fuzzy::tests::graph_service_ranking_order ... ok
+test grammar::tests::validate_messages ... ok
+test grammar::tests::rejects_out_of_range ... ok
+test heat::tests::accumulation_clamps_and_out_of_order_decays_forward ... ok
+test heat::tests::half_life_is_exact ... ok
+test heat::tests::snapshot_and_prune_drop_cold_nodes ... ok
+test grammar::tests::normalisation_cases ... ok
+test actors::tests::prune_keeps_registry_bounded ... ok
+test llm::tests::wire_shapes ... ok
+test paths::tests::empty_target_relativises_and_root_rules_work ... ok
+test paths::tests::longest_prefix_wins_regardless_of_order ... ok
+test paths::tests::parse_and_rewrite_cases ... ok
+test paths::tests::parse_errors_and_replacement ... ok
+test paths::tests::resolve_prefers_longest_suffix_and_dedupes ... ok
+test timeline::tests::heat_at_replays_decay ... ok
+test timeline::tests::ring_evicts_oldest_and_sorts_late_arrivals ... ok
+test timeline::tests::window_is_inclusive ... ok
+test llm::tests::schema_tags_match_serde ... ok
+test llm::tests::rejects_bad_replies ... ok
+test llm::tests::every_variant_conforms_and_round_trips ... ok
+test llm::tests::llm_never_panics_on_junk ... ok
+test grammar::tests::never_panics_on_grammar_soup ... ok
+test grammar::tests::never_panics_on_any_string ... ok
+test llm::tests::llm_round_trips_every_variant ... ok
+
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s
+
+     Running tests/grammar_golden.rs (/home/devuser/workspace/codescape/target/debug/deps/grammar_golden-70f9e717d8167f8f)
+
+running 4 tests
+test every_command_variant_is_reachable_by_voice ... ok
+test golden_commands_pass_the_llm_gate ... ok
+test non_commands ... ok
+test golden_table ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/home/devuser/workspace/codescape/target/debug/deps/codescape_ingest-49b67ec78cdd129d)
+
+running 36 tests
+test analytics::tests::new_nodes_join_their_neighbours ... ok
+test annotations::tests::binding_prefers_the_documented_symbol_then_the_innermost_container ... ok
+test annotations::tests::block_geometry_skips_attributes_and_stops_at_blank_lines ... ok
+test annotations::tests::every_comment_leader_is_accepted ... ok
+test annotations::tests::iri_shape_is_checked_and_nothing_else ... ok
+test annotations::tests::malformed_bare_trailing_and_ninth_iris_are_ignored ... ok
+test annotations::tests::refs_are_sorted_deduplicated_and_capped ... ok
+test engine::tests::truthiness_matches_python ... ok
+test map::tests::confidence_and_labels ... ok
+test engine::tests::noise_and_hidden_paths_are_not_visible ... ok
+test engine::tests::lexical_and_lenient_resolution ... ok
+test tests::dogfood_codescape_crates ... ignored, reads the whole checkout; run manually
+test map::tests::kinds_follow_graphicle_records ... ok
+test map::tests::locations_parse_both_forms ... ok
+test tests::path_scanner_sees_every_form ... ok
+test view::tests::paths_avoid_directories_and_bfs_reports_parents ... ok
+test tests::only_allowlisted_graphicle_paths_are_used ... ok
+test view::tests::search_ranks_exact_then_partial ... ok
+test tests::open_rejects_bad_configuration ... ok
+test watch::tests::quiet_period_closes_a_batch ... ok
+test watch::tests::continuous_writes_flush_at_the_max_wait ... ok
+test analytics::tests::path_centre_has_the_highest_betweenness ... ok
+test analytics::tests::directories_are_excluded_and_aggregate_their_files ... ok
+test annotations::tests::rebind_follows_moved_spans_without_rereading ... ok
+test annotations::tests::table_rolls_up_to_the_file_and_never_to_directories_or_containers ... ok
+test annotations::tests::binds_against_graphicle_spans ... ok
+test analytics::tests::sampling_is_deterministic ... ok
+test tests::watcher_fails_only_for_an_unwatchable_root ... ok
+test tests::ignored_churn_does_not_hold_back_a_batch ... ok
+test tests::watcher_skips_unreadable_and_ignored_subtrees ... ok
+test tests::continuous_real_writes_flush_at_the_max_wait ... ok
+test tests::drop_returns_promptly_while_events_stream ... ok
+test tests::golden_fixture_maps_structure_and_loads_from_cache ... ok
+test tests::apply_changed_patches_only_the_touched_files ... ok
+test tests::watcher_batches_filters_and_stops_on_drop ... ok
+test tests::single_file_patch_on_a_50k_node_graph_is_fast ... ok
+
+test result: ok. 35 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 15.26s
+
+     Running unittests src/lib.rs (/home/devuser/workspace/codescape/target/debug/deps/codescape_layout-e845046040e7c582)
+
+running 42 tests
+test cpu::tests::bench_cpu_settle_and_delta_100k ... ignored, benchmark: run in release with --ignored --nocapture
+test abi::tests::committed_fallback_is_refused ... ok
+test cpu::tests::bench_cpu_step ... ignored, benchmark: run in release with --ignored --nocapture
+test abi::tests::arity_drift_is_refused_even_with_the_right_params_size ... ok
+test cpu::tests::energy_concentration_on_plateau ... ignored, diagnostic: run in release with --ignored --nocapture
+test abi::tests::parser_edge_cases ... ok
+test abi::tests::fresh_build_passes ... ok
+test abi::tests::provenance_must_be_compiled ... ok
+test cpu::tests::delta_for_another_revision_is_refused ... ok
+test model::tests::bench_host_terms ... ignored, benchmark: run in release with --ignored --nocapture
+test knn::tests::only_shared_ids_count ... ok
+test model::tests::bodies_and_aggregates_are_classified ... ok
+test model::tests::csr_is_symmetric_merged_and_weighted ... ok
+test model::tests::focus_expands_aggregates_and_one_hop ... ok
+test octree::tests::coincident_points_terminate ... ok
+test ptx_source::tests::a_fallback_provenance_is_refused ... ok
+test ptx_source::tests::real_build_artefacts_verify ... ignored, needs a real build: CODESCAPE_PTX_DIR=<dir> cargo test -p codescape-layout -- --ignored real_build
+test octree::tests::theta_zero_is_exact ... ok
+test ptx_source::tests::a_missing_dir_is_a_device_error ... ok
+test ptx_source::tests::a_fresh_compiled_artefact_is_accepted ... ok
+test ptx_source::tests::a_manifest_without_the_unified_line_is_refused ... ok
+test ptx_source::tests::content_tag_matches_fnv1a_64_vectors ... ok
+test seed::tests::fibonacci_points_are_unit_and_spread ... ok
+test ptx_source::tests::missing_files_are_device_errors_naming_the_file ... ok
+test model::tests::aggregate_matches_lod_aggregate_positions ... ok
+test ptx_source::tests::the_stale_172_byte_layout_is_refused_even_when_compiled_and_tagged ... ok
+test ptx_source::tests::a_tag_mismatch_is_refused ... ok
+test seed::tests::known_positions_are_kept_and_children_follow_parents ... ok
+test ptx_source::tests::an_unset_or_empty_variable_is_a_device_error ... ok
+test seed::tests::hierarchy_is_nested ... ok
+test model::tests::host_forces_pull_members_to_their_file_and_balance ... ok
+test seed::tests::seed_is_deterministic_and_order_independent ... ok
+test octree::tests::approximation_error_is_small_at_default_theta ... ok
+test cpu::tests::focus_mask_freezes_everything_else_exactly ... ok
+test knn::tests::unrelated_layouts_disagree ... ok
+test knn::tests::grid_matches_brute_force ... ok
+test cpu::tests::warm_start_keeps_unrelated_nodes_exactly ... ok
+test knn::tests::identical_and_rigidly_moved_layouts_agree ... ok
+test cpu::tests::steps_are_deterministic ... ok
+test cpu::tests::two_cliques_separate ... ok
+test cpu::tests::star_is_roughly_symmetric ... ok
+test cpu::tests::settles_on_a_2k_random_graph ... ok
+
+test result: ok. 37 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 3.31s
+
+     Running unittests src/lib.rs (/home/devuser/workspace/codescape/target/debug/deps/codescape_model-f1ffda6917491873)
+
+running 22 tests
+test community::tests::a_split_keeps_the_bigger_half_and_mints_a_label_for_the_rest ... ok
+test community::tests::permuted_labels_are_restored ... ok
+test community::tests::unassigned_zero_passes_through ... ok
+test events::tests::events_are_tagged_snake_case_json ... ok
+test graph::tests::kinds_and_relations_round_trip_strings ... ok
+test delta::tests::diff_then_apply_reproduces_after ... ok
+test graph::tests::validate_catches_broken_graphs ... ok
+test ids::tests::exhaustion_is_an_error_not_a_wrap ... ok
+test ids::tests::hostile_count_is_refused_before_allocation ... ok
+test ids::tests::ids_are_monotonic_and_stable ... ok
+test ids::tests::next_epoch_forgets_everything ... ok
+test ids::tests::rejects_garbage ... ok
+test ids::tests::serde_round_trip_restores_the_index ... ok
+test lod::tests::aggregate_positions_take_centroids ... ok
+test lod::tests::tiers_are_built_and_clusters_propagate ... ok
+test lod::tests::top_dir_handles_edges ... ok
+test wire::tests::ack_round_trips_and_matches_fixture_shape ... ok
+test wire::tests::actors_carry_the_agent_flag ... ok
+test wire::tests::agent_action_frame_shape ... ok
+test wire::tests::code_records_never_carry_flag_bits ... ok
+test wire::tests::record_matches_frozen_fixture_bytes ... ok
+test ids::tests::round_trips_through_bytes ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/home/devuser/workspace/codescape/target/debug/deps/codescape_server-768cad80d50a334f)
+
+running 100 tests
+test auth::tests::require_auth_refuses_until_p6 ... ok
+test auth::tests::rate_limiter_refills ... ok
+test auth::tests::alloc_limiter_caps_per_address_per_window ... ok
+test auth::tests::token_compare ... ok
+test auth::tests::ip_buckets_allow_the_burst_then_the_rate ... ok
+test cache::tests::bounded_and_evicts_the_oldest_insert ... ok
+test cache::tests::get_or_insert_builds_once ... ok
+test auth::tests::token_fails_closed ... ok
+test config::tests::ruvector_conninfo_refuses_boot ... ok
+test egress::tests::malformed_config_is_an_error ... ok
+test config::tests::boolish_flags_accept_digits ... ok
+test config::tests::egress_urls_include_optional_endpoints ... ok
+test egress::tests::listed_origins_pass_and_others_are_refused ... ok
+test config::tests::defaults_and_repeatable_repos ... ok
+test config::tests::empty_optional_urls_mean_unset ... ok
+test config::tests::ephemeral_ports_parse ... ok
+test http::tests::backend_paths ... ok
+test http::tests::public_url_ignores_the_host_header ... ok
+test http::tests::auth_rejections_still_carry_isolation_headers ... ok
+test http::tests::api_rate_limit_is_per_peer_and_keeps_isolation_headers ... ok
+test http::tests::api_rate_limit_keys_on_forwarded_hop_only_when_trusted ... ok
+test ingest_api::tests::agent_text_is_private_by_default ... ok
+test http::tests::without_static_dir_everything_unknown_is_json_404 ... ok
+test origin::tests::configured_list_replaces_loopback_defaults ... ok
+test egress::tests::redirects_to_unlisted_hosts_are_refused ... ok
+test config::tests::public_origin_defaults_from_bind_and_port ... ok
+test config::tests::bad_values_are_rejected ... ok
+test config::tests::proxy_flags_parse_and_validate ... ok
+test ingest_api::tests::rate_limit_answers_429 ... ok
+test origin::tests::malformed_patterns_are_rejected ... ok
+test ingest_api::tests::token_gates_ingest ... ok
+test origin::tests::cross_site_origins_are_refused ... ok
+test ingest_api::tests::presence_kinds_follow_the_tool ... ok
+test origin::tests::missing_origin_is_a_native_client ... ok
+test persist::tests::persisted_ephemeral_labels_are_dropped_on_load ... ok
+test ingest_api::tests::failed_auth_cannot_exhaust_the_hook_bucket ... ok
+test persist::tests::actor_ids_allocate_downward_and_persist ... ok
+test origin::tests::same_origin_and_loopback_are_allowed_by_default ... ok
+test proxy::tests::forwarded_prefix_wins_over_the_flag_only_when_trusted ... ok
+test persist::tests::positions_round_trip_and_epoch_guard ... ok
+test proxy::tests::explicit_public_origin_always_wins ... ok
+test proxy::tests::last_forwarded_for_hop_wins_over_a_client_supplied_chain ... ok
+test proxy::tests::prefixes_normalise ... ok
+test proxy::tests::trust_from_narrows_to_listed_peers ... ok
+test proxy::tests::trust_off_ignores_every_forwarded_header ... ok
+test proxy::tests::localhost_resolves_to_loopback_and_is_trusted ... ok
+test proxy::tests::trust_on_falls_back_for_direct_requests ... ok
+test proxy::tests::trust_on_rejects_malformed_forwarded_values ... ok
+test proxy::tests::trust_on_uses_the_forwarded_host_proto_and_prefix ... ok
+test proxy::tests::trusted_peer_entries_parse ... ok
+test voice::asr::tests::live_tts_to_asr_round_trip ... ignored, needs pocket-tts and nemotron-asr on the network
+test voice::asr::tests::finaliser_waits_for_settle_and_quiet ... ok
+test voice::asr::tests::pcm_bytes_and_transcript ... ok
+test voice::asr::tests::server_messages_decode ... ok
+test persist::tests::rotating_log_bounds_size_and_keeps_three ... ok
+test voice::jev::tests::explicit_config_wins_and_timeout_is_clamped ... ok
+test voice::asr::tests::slicer_emits_exact_frames_and_pads_the_tail ... ok
+test voice::jev::tests::default_threshold_accepts_nothing_below_certainty ... ok
+test voice::jev::tests::local_only_by_default_and_allow_cloud_overrides ... ok
+test voice::jev::tests::off_by_default_even_with_every_endpoint ... ok
+test voice::jev::tests::accept_path_selects_the_offered_command ... ok
+test voice::jev::tests::proxy_sends_no_bearer_and_accepts_the_skill_route_pair ... ok
+test voice::jev::tests::no_match_accept_path_substitutes_only_an_offered_command ... ok
+test voice::jev::tests::wire_shape_offers_only_argument_free_commands_plus_none ... ok
+test voice::loom::tests::content_extraction_tolerates_think_and_fences ... ok
+test voice::loom::tests::request_declines_the_scaffold_and_carries_the_schema ... ok
+test voice::tts::tests::aligner_keeps_whole_samples ... ok
+test voice::asr::tests::audio_encodes_as_a_named_msgpack_map_of_float32 ... ok
+test wire::tests::acking_clients_get_at_most_two_in_flight ... ok
+test voice::loom::tests::unlisted_loom_is_refused ... ok
+test wire::tests::field_changes_resend_and_heat_is_quantised ... ok
+test voice::tts::tests::unlisted_tts_host_is_refused_before_any_io ... ok
+test voice::tts::tests::request_shape_matches_pocket_tts ... ok
+test wire::tests::budget_spreads_a_keyframe_over_ticks ... ok
+test wire::tests::first_select_is_a_keyframe_then_only_movers ... ok
+test wire::tests::keyframe_interval_and_forced_keyframes ... ok
+test wire::tests::leaving_the_projection_forgets_the_node ... ok
+test wire::tests::non_acking_clients_are_never_paced ... ok
+test wire::tests::small_moves_accumulate_against_last_sent ... ok
+test wire::tests::timeout_recovers_instead_of_deadlocking ... ok
+test voice::jev::tests::grammar_hits_empty_and_invalid_never_reach_jev ... ok
+test xr::tests::presence_maps_onto_existing_action_types ... ok
+test http::tests::static_spa_and_404s_all_carry_isolation_headers ... ok
+test xr::tests::text_messages_are_classified_tolerantly ... ok
+test xr_presence::tests::hostile_pose_frames_are_refused ... ok
+test xr_presence::tests::disconnect_sends_avatar_left_and_empties_the_room ... ok
+test xr::tests::initial_graph_load_parses_with_the_xr_expectations ... ok
+test xr_presence::tests::pose_rate_is_twenty_per_second ... ok
+test xr_presence::tests::handshake_golden_against_the_client_wire ... ok
+test xr_presence::tests::open_auth_tolerates_missing_and_malformed_fields ... ok
+test xr_presence::tests::room_hash_matches_the_client_fnv ... ok
+test xr_presence::tests::rejoin_replaces_the_stale_member ... ok
+test xr::tests::ontology_refs_ride_only_on_annotated_nodes ... ok
+test xr_presence::tests::two_members_see_each_other_and_poses_relay ... ok
+test xr_presence::tests::rooms_and_queues_are_bounded ... ok
+test persist::tests::atomic_write_replaces_and_leaves_no_temp ... ok
+test proxy::tests::unresolvable_hostname_trusts_no_peer ... ok
+test voice::jev::tests::no_match_is_identical_when_jev_is_absent_or_fails ... ok
+test persist::tests::ephemeral_range_sits_below_and_never_overlaps ... ok
+test voice::jev::tests::every_failure_returns_no_command ... ok
+
+test result: ok. 99 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+     Running unittests src/main.rs (/home/devuser/workspace/codescape/target/debug/deps/codescape_server-5f7e609caec33c79)
+
+running 18 tests
+test engine::tests::change_queue_drops_the_oldest_batch_when_full ... ok
+test queries::tests::callable_beyond_the_first_three_still_wins ... ok
+test queries::tests::callable_outside_the_margin_does_not_win ... ok
+test queries::tests::candidate_labels_carry_path_and_line ... ok
+test engine::tests::evictions_take_the_oldest_stale_actors_only ... ok
+test routes::tests::snapshot_projection_keeps_tier_and_focus_symbols_only ... ok
+test routes::voice::tests::floor_messages_are_typed ... ok
+test ingest_sink::tests::only_files_and_known_deletions_are_accepted ... ok
+test routes::tests::loom_prompt_examples_are_valid_commands ... ok
+test state::tests::connection_slots_are_capped_and_freed_on_drop ... ok
+test state::tests::shared_view_versions_move ... ok
+test state::tests::disconnect_releases_only_its_own_hold ... ok
+test state::tests::tiers_parse ... ok
+test state::tests::only_the_claiming_connection_moves_the_floor ... ok
+test state::tests::events_need_a_linked_open_voice_connection ... ok
+test routes::voice::tests::preroll_keeps_the_newest_two_seconds ... ok
+test routes::tests::ontology_refs_route_lists_every_bound_annotation ... ok
+test engine::tests::eviction_removes_stale_actors_and_keeps_the_rest_intact ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/isolation.rs (/home/devuser/workspace/codescape/target/debug/deps/isolation-e897e0566f8a6c5b)
+
+running 8 tests
+test the_visionclaw_repo_matcher_catches_known_urls ... ok
+test server_refuses_to_boot_with_a_ruvector_connection_string ... ok
+test the_check_itself_catches_an_injected_dependency ... ok
+test build_graph_contains_no_knowledge_work_crates ... ok
+test cuda_feature_graph_contains_no_knowledge_work_crates ... ok
+test no_dependency_comes_from_the_visionclaw_repository ... ok
+test no_permissive_crate_depends_on_an_agpl_crate ... ok
+test visionclaw_wire_is_the_only_visionclaw_crate ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.03s
+
+     Running tests/wire_fixture.rs (/home/devuser/workspace/codescape/target/debug/deps/wire_fixture-bec0d72a7a569cd7)
+
+running 1 test
+test client_v5_fixture_matches_visionclaw_wire ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests codescape_collab
+
+running 15 tests
+test crates/codescape-collab/src/floor.rs - floor::FloorArbiter (line 34) ... ok
+test crates/codescape-collab/src/grammar.rs - grammar::Command::validate (line 203) ... ok
+test crates/codescape-collab/src/grammar.rs - grammar::normalise_spoken (line 336) ... ok
+test crates/codescape-collab/src/lib.rs - (line 29) ... ok
+test crates/codescape-collab/src/fuzzy.rs - fuzzy::split_identifier (line 24) ... ok
+test crates/codescape-collab/src/timeline.rs - timeline::TimelineLog (line 36) ... ok
+test crates/codescape-collab/src/paths.rs - paths::PathMap (line 32) ... ok
+test crates/codescape-collab/src/heat.rs - heat::decay_factor (line 41) ... ok
+test crates/codescape-collab/src/lib.rs - ReadmeDoctests (line 80) ... ok
+test crates/codescape-collab/src/grammar.rs - grammar::parse_command (line 477) ... ok
+test crates/codescape-collab/src/llm.rs - llm::command_from_llm (line 202) ... ok
+test crates/codescape-collab/src/llm.rs - llm::command_schema (line 105) ... ok
+test crates/codescape-collab/src/paths.rs - paths::resolve_paths (line 150) ... ok
+test crates/codescape-collab/src/fuzzy.rs - fuzzy::fuzzy_rank (line 72) ... ok
+test crates/codescape-collab/src/heat.rs - heat::intensity (line 21) ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+
+   Doc-tests codescape_ingest
+
+running 2 tests
+test crates/codescape-ingest/src/lib.rs - (line 22) - compile ... ok
+test crates/codescape-ingest/src/annotations.rs - annotations (line 41) ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.33s
+
+   Doc-tests codescape_layout
+
+running 9 tests
+test crates/codescape-layout/src/ptx_source.rs - ptx_source::content_tag (line 135) ... ok
+test crates/codescape-layout/src/lib.rs - (line 110) ... ok
+test crates/codescape-layout/src/knn.rs - knn::knn_overlap (line 20) ... ok
+test crates/codescape-layout/src/abi.rs - abi (line 22) ... ok
+test crates/codescape-layout/src/ptx_source.rs - ptx_source (line 29) ... ok
+test crates/codescape-layout/src/seed.rs - seed::hierarchical_seed (line 39) ... ok
+test crates/codescape-layout/src/lib.rs - select_engine (line 360) ... ok
+test crates/codescape-layout/src/abi.rs - abi::parse_manifest (line 150) ... ok
+test crates/codescape-layout/src/cpu.rs - cpu::CpuEngine (line 22) ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+   Doc-tests codescape_model
+
+running 2 tests
+test crates/codescape-model/src/lib.rs - ReadmeDoctests (line 115) ... ok
+test crates/codescape-model/src/lib.rs - (line 26) ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+   Doc-tests codescape_server
+
+running 5 tests
+test crates/codescape-server/src/xr_presence.rs - xr_presence (line 33) ... ok
+test crates/codescape-server/src/origin.rs - origin (line 16) ... ok
+test crates/codescape-server/src/cache.rs - cache (line 11) ... ok
+test crates/codescape-server/src/lib.rs - (line 25) ... ok
+test crates/codescape-server/src/proxy.rs - proxy (line 34) ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.79s
+
+exit=0
+
+================================================================
+$ cargo doc --workspace --no-deps --locked
+    Checking codescape-model v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-model)
+ Documenting codescape-model v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-model)
+    Checking codescape-collab v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-collab)
+    Checking codescape-ingest v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-ingest)
+    Checking codescape-layout v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-layout)
+ Documenting codescape-layout v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-layout)
+ Documenting codescape-collab v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-collab)
+ Documenting codescape-ingest v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-ingest)
+ Documenting codescape-server v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.60s
+   Generated /home/devuser/workspace/codescape/target/doc/codescape_collab/index.html and 4 other files
+exit=0
+
+################ re-run after fmt fix commit 865bb2653fc6440e4771da78a3f68e2e07e616ef
+$ cargo fmt --all --check
+exit=0

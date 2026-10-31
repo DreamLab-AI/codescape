@@ -1,0 +1,61 @@
+# Codescape P2 gate (ADR-2143 A2.1 required step)
+date:          2026-10-31T16:16:31Z
+host:          agentbox (Linux 7.3.0-2-cachyos)
+rustc:         rustc 1.99.1 (58cf8f9c3 2026-10-13)
+node / npm:    v22.23.3 / 10.9.9
+source sha:    865bb2653fc6440e4771da78a3f68e2e07e616ef
+graphicle:     003f93605d895ed69f0cf06690dd296474385b99
+Cargo.lock sha256: 5d26946461577a69ab2cfa972344ea1a24de476b9ec36021126577503b6d9424
+CARGO_TARGET_DIR=/home/devuser/workspace/codescape/target
+CODESCAPE_PTX_DIR=/home/devuser/workspace/.tmp/w5ptx (copy of visionclaw-gpu build output from VisionClaw target, 2026-10-17 18:25 build; sha256 below)
+dbb47751f4b8fc4e6a561f7b621166f4198b7ef9b9592d9303249306cdcbb473  /home/devuser/workspace/.tmp/w5ptx/ptx-build-manifest.txt
+f05b3cab2f2cdded9eecb0e5e8d8bde19a5bebc4d1048d57a17aab56eb45b45a  /home/devuser/workspace/.tmp/w5ptx/visionclaw_unified.ptx
+CUDA_VISIBLE_DEVICES=1 (NVIDIA RTX 6000 Ada Generation, 615.78.08)
+$ CODESCAPE_GPU_TESTS=1 cargo test -p codescape-layout --features cuda -- --ignored gpu_conforms_to_cpu_oracle
+   Compiling libm v0.2.16
+   Compiling glob v0.3.4
+   Compiling semver v1.0.28
+   Compiling syn v1.0.109
+   Compiling mint v0.5.9
+   Compiling either v1.19.0
+   Compiling num-traits v0.2.19
+   Compiling getrandom v0.2.17
+   Compiling syn v2.0.119
+   Compiling tempfile v3.27.0
+   Compiling rand_core v0.6.4
+   Compiling rayon v1.12.0
+   Compiling find_cuda_helper v0.2.0
+   Compiling rustc_version v0.4.1
+   Compiling rusty-fork v0.3.1
+   Compiling rand_chacha v0.3.1
+   Compiling rand v0.8.8
+   Compiling cust_raw v0.11.3
+   Compiling cust v0.3.2
+   Compiling vek v0.15.10
+   Compiling approx v0.5.1
+   Compiling num-integer v0.1.47
+   Compiling glam v0.20.5
+   Compiling proptest v1.12.0
+   Compiling cust_derive v0.2.0
+   Compiling cust_core v0.1.1
+   Compiling tracing-attributes v0.1.31
+   Compiling tracing v0.1.44
+   Compiling codescape-layout v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-layout)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.65s
+     Running unittests src/lib.rs (/home/devuser/workspace/codescape/target/debug/deps/codescape_layout-41bc2deb8ec6279f)
+
+running 1 test
+energy cpu [57558.65, 5490.6147, 1172.0464, 861.5954, 619.0537, 419.25357, 323.5353, 232.45459]
+energy gpu [60672.836, 5711.6895, 1190.7745, 824.18976, 554.6426, 421.93454, 340.08267, 230.09914]
+k-NN overlap (k=10) after 400 steps: GPU vs CPU symbols 0.868 files 1.000; CPU vs CPU(0.9 dt) symbols 0.734 files 0.980
+test cuda::tests::gpu_conforms_to_cpu_oracle ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 54 filtered out; finished in 8.60s
+
+   Doc-tests codescape_layout
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+exit=0

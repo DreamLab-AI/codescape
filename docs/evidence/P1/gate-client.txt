@@ -1,0 +1,44 @@
+# Codescape P1 client gate
+date:          2026-10-31T16:16:04Z
+host:          agentbox (Linux 7.3.0-2-cachyos)
+rustc:         rustc 1.99.1 (58cf8f9c3 2026-10-13)
+node / npm:    v22.23.3 / 10.9.9
+source sha:    0256a85282ff118214403a574bd8b07cd5e41c16 (chore: ignore local agent state (.claude-flow/))
+graphicle:     003f93605d895ed69f0cf06690dd296474385b99
+Cargo.lock sha256: 5d26946461577a69ab2cfa972344ea1a24de476b9ec36021126577503b6d9424
+CARGO_TARGET_DIR=/home/devuser/workspace/codescape/target
+
+================================================================
+$ node_modules/.bin/vitest run
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90m/home/devuser/workspace/wt/codescape-adr-w5/client[39m
+
+ [32m✓[39m src/__tests__/isolation.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/__tests__/labels.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/__tests__/lod.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/__tests__/graph.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/__tests__/protocol.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 60[2mms[22m[39m
+ [32m✓[39m src/__tests__/store.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 77[2mms[22m[39m
+ [32m✓[39m src/__tests__/spacePilot.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/__tests__/misc.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 193[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m8 passed[39m[22m[90m (8)[39m
+[2m      Tests [22m [1m[32m86 passed[39m[22m[90m (86)[39m
+[2m   Start at [22m 16:16:04
+[2m   Duration [22m 1.30s[2m (transform 1.47s, setup 0ms, import 1.77s, tests 407ms, environment 4.80s)[22m
+
+exit=0
+
+================================================================
+$ node_modules/.bin/vite build
+vite v6.4.1 building for production...
+transforming...
+✓ 630 modules transformed.
+rendering chunks...
+computing gzip size...
+../target/codescape-dist/index.html                               0.44 kB │ gzip:   0.29 kB
+../target/codescape-dist/assets/positions.worker-D08nzTkj.js      1.73 kB
+../target/codescape-dist/assets/index-DfZd415e.css                7.72 kB │ gzip:   2.30 kB
+../target/codescape-dist/assets/index-DSTMLbUO.js             1,214.05 kB │ gzip: 344.03 kB │ map: 5,450.16 kB
+✓ built in 8.60s
+exit=0

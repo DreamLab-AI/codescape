@@ -1,0 +1,104 @@
+# Codescape P0 gate (ADR-2143 / ADR-0001 follow-on)
+date:          2026-10-31T16:14:06Z
+host:          agentbox (Linux 7.3.0-2-cachyos)
+rustc:         rustc 1.99.1 (58cf8f9c3 2026-10-13)
+node / npm:    v22.23.3 / 10.9.9
+source sha:    0256a85282ff118214403a574bd8b07cd5e41c16 (chore: ignore local agent state (.claude-flow/))
+graphicle:     003f93605d895ed69f0cf06690dd296474385b99
+Cargo.lock sha256: 5d26946461577a69ab2cfa972344ea1a24de476b9ec36021126577503b6d9424
+CARGO_TARGET_DIR=/home/devuser/workspace/codescape/target
+
+================================================================
+$ cargo test --locked -p codescape-model
+   Compiling proc-macro2 v1.0.107
+   Compiling getrandom v0.4.3
+   Compiling serde_core v1.0.229
+   Compiling serde v1.0.229
+   Compiling once_cell v1.21.4
+   Compiling serde_json v1.0.154
+   Compiling memchr v2.8.3
+   Compiling libc v0.2.191
+   Compiling num-traits v0.2.19
+   Compiling wait-timeout v0.2.1
+   Compiling quote v1.0.47
+   Compiling tempfile v3.27.0
+   Compiling rand v0.10.3
+   Compiling syn v3.0.9
+   Compiling rusty-fork v0.3.1
+   Compiling proptest v1.12.0
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.21
+   Compiling thiserror v2.0.21
+   Compiling codescape-model v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-model)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.92s
+     Running unittests src/lib.rs (/home/devuser/workspace/codescape/target/debug/deps/codescape_model-0de899ef821eb613)
+
+running 22 tests
+test community::tests::permuted_labels_are_restored ... ok
+test community::tests::unassigned_zero_passes_through ... ok
+test delta::tests::diff_then_apply_reproduces_after ... ok
+test community::tests::a_split_keeps_the_bigger_half_and_mints_a_label_for_the_rest ... ok
+test graph::tests::kinds_and_relations_round_trip_strings ... ok
+test events::tests::events_are_tagged_snake_case_json ... ok
+test graph::tests::validate_catches_broken_graphs ... ok
+test ids::tests::exhaustion_is_an_error_not_a_wrap ... ok
+test ids::tests::hostile_count_is_refused_before_allocation ... ok
+test ids::tests::next_epoch_forgets_everything ... ok
+test ids::tests::ids_are_monotonic_and_stable ... ok
+test ids::tests::serde_round_trip_restores_the_index ... ok
+test lod::tests::tiers_are_built_and_clusters_propagate ... ok
+test ids::tests::rejects_garbage ... ok
+test lod::tests::aggregate_positions_take_centroids ... ok
+test lod::tests::top_dir_handles_edges ... ok
+test wire::tests::ack_round_trips_and_matches_fixture_shape ... ok
+test wire::tests::actors_carry_the_agent_flag ... ok
+test wire::tests::agent_action_frame_shape ... ok
+test wire::tests::code_records_never_carry_flag_bits ... ok
+test wire::tests::record_matches_frozen_fixture_bytes ... ok
+test ids::tests::round_trips_through_bytes ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests codescape_model
+
+running 2 tests
+test crates/codescape-model/src/lib.rs - ReadmeDoctests (line 115) ... ok
+test crates/codescape-model/src/lib.rs - (line 26) ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+exit=0
+
+================================================================
+$ cargo test --locked -p codescape-server --test isolation
+   Compiling codescape-model v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-model)
+   Compiling codescape-collab v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-collab)
+   Compiling codescape-ingest v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-ingest)
+   Compiling codescape-layout v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-layout)
+   Compiling codescape-server v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 25.04s
+     Running tests/isolation.rs (/home/devuser/workspace/codescape/target/debug/deps/isolation-e897e0566f8a6c5b)
+
+running 8 tests
+test the_visionclaw_repo_matcher_catches_known_urls ... ok
+test server_refuses_to_boot_with_a_ruvector_connection_string ... ok
+test the_check_itself_catches_an_injected_dependency ... ok
+test cuda_feature_graph_contains_no_knowledge_work_crates ... ok
+test build_graph_contains_no_knowledge_work_crates ... ok
+test visionclaw_wire_is_the_only_visionclaw_crate ... ok
+test no_dependency_comes_from_the_visionclaw_repository ... ok
+test no_permissive_crate_depends_on_an_agpl_crate ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.86s
+
+exit=0
+
+================================================================
+$ bash -c cargo tree --locked -p codescape-model | grep -ci graphicle; true
+0
+exit=0
+
+================================================================
+$ bash -c cargo tree --locked -p codescape-collab | grep -ci graphicle; true
+0
+exit=0
