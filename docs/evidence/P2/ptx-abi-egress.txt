@@ -1,0 +1,77 @@
+# Codescape P2 gate: PTX ABI/provenance + egress tests (default test set, cuda feature)
+date:          2026-10-31T16:17:03Z
+host:          agentbox (Linux 7.3.0-2-cachyos)
+rustc:         rustc 1.99.1 (58cf8f9c3 2026-10-13)
+node / npm:    v22.23.3 / 10.9.9
+source sha:    865bb2653fc6440e4771da78a3f68e2e07e616ef
+graphicle:     003f93605d895ed69f0cf06690dd296474385b99
+Cargo.lock sha256: 5d26946461577a69ab2cfa972344ea1a24de476b9ec36021126577503b6d9424
+CARGO_TARGET_DIR=/home/devuser/workspace/codescape/target
+$ cargo test --locked -p codescape-layout --features cuda -- abi ptx provenance
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
+     Running unittests src/lib.rs (/home/devuser/workspace/codescape/target/debug/deps/codescape_layout-41bc2deb8ec6279f)
+
+running 16 tests
+test abi::tests::arity_drift_is_refused_even_with_the_right_params_size ... ok
+test abi::tests::committed_fallback_is_refused ... ok
+test abi::tests::fresh_build_passes ... ok
+test abi::tests::provenance_must_be_compiled ... ok
+test abi::tests::parser_edge_cases ... ok
+test cuda::tests::select_engine_falls_back_to_cpu_without_a_ptx_dir ... ok
+test ptx_source::tests::real_build_artefacts_verify ... ignored, needs a real build: CODESCAPE_PTX_DIR=<dir> cargo test -p codescape-layout -- --ignored real_build
+test ptx_source::tests::content_tag_matches_fnv1a_64_vectors ... ok
+test ptx_source::tests::a_fallback_provenance_is_refused ... ok
+test ptx_source::tests::a_manifest_without_the_unified_line_is_refused ... ok
+test ptx_source::tests::a_missing_dir_is_a_device_error ... ok
+test ptx_source::tests::a_fresh_compiled_artefact_is_accepted ... ok
+test ptx_source::tests::a_tag_mismatch_is_refused ... ok
+test ptx_source::tests::missing_files_are_device_errors_naming_the_file ... ok
+test ptx_source::tests::an_unset_or_empty_variable_is_a_device_error ... ok
+test ptx_source::tests::the_stale_172_byte_layout_is_refused_even_when_compiled_and_tagged ... ok
+
+test result: ok. 15 passed; 0 failed; 1 ignored; 0 measured; 39 filtered out; finished in 0.00s
+
+   Doc-tests codescape_layout
+
+running 4 tests
+test crates/codescape-layout/src/ptx_source.rs - ptx_source::content_tag (line 135) ... ok
+test crates/codescape-layout/src/abi.rs - abi::parse_manifest (line 150) ... ok
+test crates/codescape-layout/src/abi.rs - abi (line 22) ... ok
+test crates/codescape-layout/src/ptx_source.rs - ptx_source (line 29) ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.23s
+
+exit=0
+
+$ cargo test --locked -p codescape-server egress
+   Compiling codescape-server v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.80s
+     Running unittests src/lib.rs (/home/devuser/workspace/codescape/target/debug/deps/codescape_server-768cad80d50a334f)
+
+running 4 tests
+test egress::tests::malformed_config_is_an_error ... ok
+test egress::tests::listed_origins_pass_and_others_are_refused ... ok
+test config::tests::egress_urls_include_optional_endpoints ... ok
+test egress::tests::redirects_to_unlisted_hosts_are_refused ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 96 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/home/devuser/workspace/codescape/target/debug/deps/codescape_server-5f7e609caec33c79)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+     Running tests/isolation.rs (/home/devuser/workspace/codescape/target/debug/deps/isolation-e897e0566f8a6c5b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/wire_fixture.rs (/home/devuser/workspace/codescape/target/debug/deps/wire_fixture-bec0d72a7a569cd7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+exit=0

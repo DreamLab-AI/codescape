@@ -48,7 +48,7 @@ repo: codescape
   - The I1 negative control now depends on an in-repo fixture package named `visionclaw-ontology` (`crates/codescape-server/tests/fixtures/forbidden/`, excluded from the workspace) instead of VisionClaw's crate by sibling path.
   - The client's wire cross-check against VisionClaw's `client/src/types/binaryProtocol.ts` is replaced by a committed byte fixture, `client/src/__tests__/fixtures/v5_frame.bin`, written by `visionclaw_wire::v5_frame` and pinned to it by `crates/codescape-server/tests/wire_fixture.rs` (in the AGPL server crate, so the published `codescape-model` ships no test that reads outside its package). The isolation test has no exception left.
   - I1a and I11 were already tested at `cac36a028`; I10 is added.
-  - Open: re-run the P0/P1/P2 phase gates here and commit the output under `docs/evidence/<phase>/`.
+  - Done 2026-10-31: the P0/P1/P2 phase gates re-run here, output under `docs/evidence/<phase>/` (see Close-out 2026-10-31).
 - **Forbidden.** A dependency on any VisionClaw crate other than `visionclaw-wire`; a path or git dependency on the VisionClaw repository; compiled-in PTX.
 
 ## Alternatives rejected
@@ -73,3 +73,13 @@ Activation `inactive` → `live`. The activation event named in the status line 
 - The container `codescape` (compose project `ar-ai-knowledge-graph`) is `Up (healthy)` with `/app/codescape` bind-mounted read-only from the submodule. `GET http://127.0.0.1:4100/api/health` inside it returned `"engine":"cuda"`, `"engine_reason":"cuda: NVIDIA RTX A6000 (visionclaw_unified PTX isa 9.0 tag 7b41d3561a264b78, provenance compiled)"`, `"nodes":94249`, `"settled":true`, `"version":"0.1.0"`.
 
 Still open, not a blocker for activation: the P0/P1/P2 phase gates have not been re-run here. `docs/evidence/` at `e3b76f6` holds only `README.md` and `import-gate.txt`.
+
+## Close-out 2026-10-31
+
+The follow-on is done: the phase gates were re-run in this repository and the raw output is committed under `docs/evidence/P0/`, `P1/` and `P2/` (index and result table in [`../evidence/README.md`](../evidence/README.md)). Source `0256a85`, then `865bb26`; `CARGO_TARGET_DIR` outside any worktree.
+
+- **P0:** `cargo test --locked -p codescape-model` 22 + 2 passed; `-p codescape-server --test isolation` 8 passed (negative control, I1a, I10, I11); `cargo tree` shows no graphicle under `codescape-model` or `codescape-collab`.
+- **P1:** `cargo fmt --all --check` **failed** at `0256a85` (`crates/codescape-server/src/voice/jev.rs`). The failure stays in `P1/gate-rust.txt`; `865bb26` is the formatting-only fix and the re-run is exit=0. Clippy `-D warnings`, `cargo test --workspace --locked` (0 failed, 6 ignored CUDA device tests) and `cargo doc` with `-Dwarnings` all exit=0. Client: vitest 86 passed, `vite build` exit=0.
+- **P2:** `CODESCAPE_GPU_TESTS=1 cargo test -p codescape-layout --features cuda -- --ignored gpu_conforms_to_cpu_oracle` passed on an RTX 6000 Ada: symbols 0.868, files 1.000. PTX refusal tests (15) and egress unit tests (4) pass.
+
+The commands are cargo and vitest as listed above, so the evidence is reproducible from the headers in each file. Not covered, and not claimed: the host `docker inspect` check, a network-level egress test, edit-to-visible latency and the 100k step/settle targets (ADR-2143 A1.4 still lists the last two as missed).
