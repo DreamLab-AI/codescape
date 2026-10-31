@@ -29,7 +29,7 @@ A number without committed raw output is labelled as reported, not as evidence.
 
 ## Phase gates re-run here (2026-10-31)
 
-Source: `0256a85` (P0, P1 Rust up to the fmt check) and `865bb26` (fmt fix onward; the P1 client and P2 runs). Host `agentbox`, rustc 1.99.0, `CARGO_TARGET_DIR=/home/devuser/workspace/codescape/target`, raw output, an `exit=` per command.
+Source: `0256a85` (P0, P1 Rust up to the fmt check) and `865bb26` (fmt fix onward; the P1 client and P2 runs). Host `agentbox`, rustc 1.99.1, `CARGO_TARGET_DIR=/home/devuser/workspace/codescape/target`, raw output, an `exit=` per command. Review follow-up: the rustdoc `-Dwarnings` and `cargo tree` checks were re-run at `0438f96` (docs-only after `865bb26`) and appended to `P1/gate-rust.txt` and `P0/gate.txt`; the client gate header now names `865bb26`, the tree it ran at.
 
 | Phase | File | Result |
 |---|---|---|

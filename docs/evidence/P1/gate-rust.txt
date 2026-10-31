@@ -853,3 +853,10 @@ exit=0
 ################ re-run after fmt fix commit 865bb2653fc6440e4771da78a3f68e2e07e616ef
 $ cargo fmt --all --check
 exit=0
+
+################ re-run 2026-10-31T16:34:01Z at 0438f96e39e4ed38eed9f9936edfe317318c6bb6 (docs-only commits after 865bb26): rustdoc with -Dwarnings recorded in the command line
+$ RUSTDOCFLAGS=-Dwarnings CARGO_TARGET_DIR=/home/devuser/workspace/codescape/target cargo doc --workspace --no-deps --locked
+ Documenting codescape-server v0.1.0 (/home/devuser/workspace/wt/codescape-adr-w5/crates/codescape-server)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.18s
+   Generated /home/devuser/workspace/codescape/target/doc/codescape_collab/index.html and 4 other files
+exit=0

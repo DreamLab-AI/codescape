@@ -102,3 +102,16 @@ exit=0
 $ bash -c cargo tree --locked -p codescape-collab | grep -ci graphicle; true
 0
 exit=0
+
+################ re-run 2026-10-31T16:34:07Z at 0438f96e39e4ed38eed9f9936edfe317318c6bb6: cargo tree exit recorded separately from the grep
+$ cargo tree --locked -p codescape-model > tree-codescape-model.txt; echo tree-exit=$?; grep -ci graphicle tree-codescape-model.txt; echo grep-exit=$?
+tree-exit=0
+lines=60
+0
+grep-exit=1 (1 = no match, which is the pass)
+$ cargo tree --locked -p codescape-collab > tree-codescape-collab.txt; echo tree-exit=$?; grep -ci graphicle tree-codescape-collab.txt; echo grep-exit=$?
+tree-exit=0
+lines=64
+0
+grep-exit=1 (1 = no match, which is the pass)
+exit=0
