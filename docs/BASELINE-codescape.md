@@ -1,5 +1,10 @@
 # BASELINE: Codescape
 
+The [2026-11-02 scoped review](adr/ADR-0001-extraction-from-visionclaw.md#scoped-external-review-note-2026-11-02)
+records open presence membership and roster-delivery gaps. These are source
+observations at the declared revision, with no new deployment or phase-gate
+claim. The isolation and licence boundaries remain unchanged.
+
 > Living governing document. Its *Invariants* section is the compliance surface. Amend it only together with a record in [`adr/`](adr/README.md), in the same change.
 
 **Status (2026-10-18).** The code is imported from VisionClaw `cac36a028` (on `main`, range `b63068e3d^..cac36a028`; ADR-0001). Citations below are paths and lines in this repository.

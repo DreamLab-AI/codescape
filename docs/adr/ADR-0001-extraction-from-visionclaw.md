@@ -16,6 +16,20 @@ repo: codescape
 
 # ADR-0001: Codescape is extracted from VisionClaw into its own repository with a per-crate licence split
 
+## Scoped external-review note, 2026-11-02
+
+Source reading at `58108c0357bd0dbf6588f8b6adf6e044f4c04556` confirms two
+presence gaps within this product. `PresenceHub` replacement removes the old
+member, but an already-held `Membership` can still call `relay`; the method at
+`crates/codescape-server/src/xr_presence.rs:668-677` does not check that its
+local_id remains a current room member. `Inner::send_all` at `:521-524` uses
+`try_send` for roster transitions and pose frames on the same bounded queue
+created at `:603`, so saturation can lose join/leave information as well as
+poses. Neither observation invalidates the extraction/build isolation decision.
+Closure needs a replacement-handle test and a saturated-queue test proving
+membership transitions are delivered or recovered. No runtime test or
+deployment was performed for this note.
+
 **Status: Accepted, import landed.** Imported from VisionClaw [`cac36a028`](https://github.com/DreamLab-AI/VisionClaw/commit/cac36a028) (on `main`; source range `b63068e3d^..cac36a028`, developed on `feat/codescape`) in the commit "feat: import Codescape from VisionClaw cac36a028 (ADR-0001)" on top of the skeleton `77a1748`. Activation (VisionClaw consuming this repository as its `codescape/` submodule) is VisionClaw's change and has not happened.
 
 ## Context
