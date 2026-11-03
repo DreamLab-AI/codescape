@@ -40,6 +40,8 @@ pub fn initial_graph_load(
                 "label": n.label.as_ref(),
                 "node_type": n.kind.as_str(),
                 "metadata": {
+                    "repo": snapshot.repo.as_ref(),
+                    "revision": snapshot.revision,
                     "source_file": n.path.as_deref().unwrap_or(""),
                     "domain": n.lang.as_str(),
                     "file_size": n.size,
@@ -131,6 +133,15 @@ mod tests {
     use codescape_model::{CodeEdge, CodeNode, Confidence, Lang, NodeKind, Relation, Tier};
 
     use super::*;
+
+    #[test]
+    fn annotation_nodes_carry_repository_and_revision_provenance() {
+        let graph = snapshot();
+        let ids = graph.nodes.iter().map(|n| n.id).collect();
+        let value = initial_graph_load(&graph, &ids, &HashMap::new(), 0);
+        assert_eq!(value["nodes"][0]["metadata"]["repo"], "t");
+        assert_eq!(value["nodes"][0]["metadata"]["revision"], 1);
+    }
 
     fn node(id: u32, kind: NodeKind, label: &str, path: &str, tier: Tier) -> CodeNode {
         CodeNode {

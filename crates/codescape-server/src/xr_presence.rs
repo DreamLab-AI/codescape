@@ -24,7 +24,9 @@
 //!
 //! Bounds: [`MAX_MEMBERS_PER_ROOM`] members per room, [`MAX_ROOMS`] rooms,
 //! [`MAX_POSES_PER_SEC`] relayed poses per member ([`PoseRate`]), and a
-//! [`MEMBER_QUEUE`]-deep outbound queue per member; anything beyond is dropped.
+//! [`MEMBER_QUEUE`]-deep pose queue per member; excess poses are dropped.
+//! Roster transitions use a separate bounded queue; saturation closes the peer
+//! so reconnect obtains a fresh roster instead of retaining inconsistent state.
 //! A second join with the same avatar replaces the first (a reconnect must not
 //! wait for the stale socket's idle timeout); the replaced socket is closed.
 //!
@@ -508,6 +510,56 @@ struct Entry {
     desc: MemberDescriptor,
     avatar_id: String,
     tx: mpsc::Sender<Outbound>,
+    control: mpsc::Sender<Outbound>,
+    cancel: tokio::sync::watch::Sender<bool>,
+}
+
+/// Independent reliable control delivery and lossy pose delivery. If control
+/// backpressure exhausts its bound, close the peer so it must obtain a fresh roster.
+pub struct MemberInbox {
+    poses: mpsc::Receiver<Outbound>,
+    control: mpsc::Receiver<Outbound>,
+    cancel: tokio::sync::watch::Receiver<bool>,
+    closed: bool,
+}
+
+impl MemberInbox {
+    /// Read control before poses; a desynchronised roster terminates the session.
+    pub async fn recv(&mut self) -> Option<Outbound> {
+        if self.closed {
+            return None;
+        }
+        if *self.cancel.borrow() {
+            self.closed = true;
+            return Some(Outbound::Close(
+                "presence roster overflow; reconnect".into(),
+            ));
+        }
+        tokio::select! {
+            biased;
+            _ = self.cancel.changed() => Some(Outbound::Close("presence roster changed; reconnect".into())),
+            msg = self.control.recv() => msg,
+            msg = self.poses.recv() => msg,
+        }
+    }
+
+    /// Nonblocking equivalent of [`Self::recv`].
+    pub fn try_recv(&mut self) -> Result<Outbound, mpsc::error::TryRecvError> {
+        if self.closed {
+            return Err(mpsc::error::TryRecvError::Disconnected);
+        }
+        if *self.cancel.borrow() {
+            self.closed = true;
+            return Ok(Outbound::Close(
+                "presence roster overflow; reconnect".into(),
+            ));
+        }
+        match self.control.try_recv() {
+            Ok(msg) => Ok(msg),
+            Err(mpsc::error::TryRecvError::Empty) => self.poses.try_recv(),
+            Err(error) => Err(error),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -521,7 +573,16 @@ impl Inner {
     fn send_all(room: &[Entry], except: u32, msg: &Outbound) -> usize {
         room.iter()
             .filter(|e| e.local_id != except)
-            .filter(|e| e.tx.try_send(msg.clone()).is_ok())
+            .filter(|e| match msg {
+                Outbound::Binary(_) => e.tx.try_send(msg.clone()).is_ok(),
+                _ => match e.control.try_send(msg.clone()) {
+                    Ok(()) => true,
+                    Err(_) => {
+                        let _ = e.cancel.send(true);
+                        false
+                    }
+                },
+            })
             .count()
     }
 
@@ -564,8 +625,9 @@ impl PresenceHub {
         if let Some(i) = members.iter().position(|e| e.avatar_id == who.avatar_id) {
             let old = members.swap_remove(i);
             let _ = old
-                .tx
+                .control
                 .try_send(Outbound::Close("replaced by a newer connection".into()));
+            let _ = old.cancel.send(true);
             Inner::send_all(members, old.local_id, &Inner::left(&old));
         }
         if members.len() >= MAX_MEMBERS_PER_ROOM {
@@ -601,11 +663,15 @@ impl PresenceHub {
         );
         Inner::send_all(members, local_id, &announce);
         let (tx, rx) = mpsc::channel(MEMBER_QUEUE);
+        let (control, control_rx) = mpsc::channel(MAX_MEMBERS_PER_ROOM * 2);
+        let (cancel, cancel_rx) = tokio::sync::watch::channel(false);
         members.push(Entry {
             local_id,
             desc,
             avatar_id: who.avatar_id.clone(),
             tx,
+            control,
+            cancel,
         });
         let joined = ServerMessage::Joined {
             room_id: room.to_string(),
@@ -620,7 +686,12 @@ impl PresenceHub {
             local_id,
             avatar_id: who.avatar_id.clone(),
             joined,
-            rx,
+            rx: MemberInbox {
+                poses: rx,
+                control: control_rx,
+                cancel: cancel_rx,
+                closed: false,
+            },
         })
     }
 
@@ -659,7 +730,7 @@ pub struct Membership {
     /// The `joined` reply, roster as of the join.
     pub joined: ServerMessage,
     /// Messages for this member's socket.
-    pub rx: mpsc::Receiver<Outbound>,
+    pub rx: MemberInbox,
 }
 
 impl Membership {
@@ -672,9 +743,13 @@ impl Membership {
         let seq = self.hub.0.seq.fetch_add(1, Ordering::Relaxed);
         let msg = Outbound::Binary(sibling_frame(seq, self.room_u32, self.local_id, pose));
         let rooms = self.hub.0.rooms.lock();
-        rooms
-            .get(&self.room)
-            .map_or(0, |m| Inner::send_all(m, self.local_id, &msg))
+        rooms.get(&self.room).map_or(0, |members| {
+            if members.iter().any(|m| m.local_id == self.local_id) {
+                Inner::send_all(members, self.local_id, &msg)
+            } else {
+                0
+            }
+        })
     }
 }
 
@@ -933,6 +1008,9 @@ mod tests {
             ClientSide::AvatarJoined { .. }
         ));
         assert_eq!(hub.members(ROOM), 2);
+        let tf = vec![0; 28];
+        let pose = decode_pose(&encode_pose(ROOM, &alice.avatar_id, 1, SLOT_HEAD, &tf)).unwrap();
+        assert_eq!(old.relay(&pose), 0, "replaced handle cannot inject poses");
         drop(old);
         assert_eq!(
             hub.members(ROOM),
@@ -941,6 +1019,27 @@ mod tests {
         );
         assert!(b.rx.try_recv().is_err(), "and announces nothing");
         drop(new);
+    }
+
+    #[test]
+    fn saturated_pose_queue_cannot_drop_roster_transitions() {
+        let hub = PresenceHub::new();
+        let alice = Identity::resolve(Some(&did('a')), "1");
+        let bob = Identity::resolve(Some(&did('b')), "2");
+        let mut a = hub.join(ROOM, &alice, "alice", None).unwrap();
+        let b = hub.join(ROOM, &bob, "bob", None).unwrap();
+        let _ = a.rx.try_recv();
+        let raw = encode_pose(ROOM, &bob.avatar_id, 1, SLOT_HEAD, &[0; 28]);
+        let pose = decode_pose(&raw).unwrap();
+        for _ in 0..MEMBER_QUEUE + 5 {
+            b.relay(&pose);
+        }
+        drop(b);
+        assert!(matches!(
+            text(a.rx.try_recv().unwrap()),
+            ClientSide::AvatarLeft { .. }
+        ));
+        assert!(matches!(a.rx.try_recv().unwrap(), Outbound::Binary(_)));
     }
 
     #[test]
@@ -956,7 +1055,7 @@ mod tests {
             hub.join(ROOM, &extra, "x", None).err(),
             Some(JoinError::RoomFull)
         );
-        // The first member's queue fills with join announcements, then drops.
+        // Control transitions and lossy poses have independent bounded queues.
         let pose = decode_pose(&encode_pose(
             ROOM,
             &keep[1].avatar_id,
@@ -972,7 +1071,24 @@ mod tests {
         while keep[0].rx.try_recv().is_ok() {
             n += 1;
         }
-        assert_eq!(n, MEMBER_QUEUE, "queue depth is the bound");
+        assert_eq!(
+            n,
+            MEMBER_QUEUE + MAX_MEMBERS_PER_ROOM - 1,
+            "poses cannot replace roster transitions"
+        );
+    }
+
+    #[test]
+    fn roster_overflow_closes_the_peer_instead_of_silently_losing_state() {
+        let hub = PresenceHub::new();
+        let alice = Identity::resolve(Some(&did('a')), "1");
+        let bob = Identity::resolve(Some(&did('b')), "2");
+        let mut a = hub.join(ROOM, &alice, "alice", None).unwrap();
+        for _ in 0..MAX_MEMBERS_PER_ROOM * 2 {
+            drop(hub.join(ROOM, &bob, "bob", None).unwrap());
+        }
+        assert!(matches!(a.rx.try_recv().unwrap(), Outbound::Close(_)));
+        assert!(a.rx.try_recv().is_err());
     }
 
     #[test]
