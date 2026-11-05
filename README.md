@@ -94,7 +94,7 @@ Codescape is one section of the [VisionFlow](https://github.com/DreamLab-AI/Visi
 
 | Sibling | Relationship |
 |---|---|
-| [VisionFlow](https://github.com/DreamLab-AI/VisionFlow) | The canon: ecosystem map, compatibility matrix and honest status ledger. |
+| [VisionFlow](https://github.com/DreamLab-AI/VisionFlow) | The canon: ecosystem map, compatibility matrix and honest status ledger. Codescape's citation-verified diagrams are its [`docs/diagrams/codescape/`](https://github.com/DreamLab-AI/VisionFlow/tree/main/docs/diagrams/codescape) area (CS-NN). |
 | [VisionClaw](https://github.com/DreamLab-AI/VisionClaw) | The host deployment. It mounts this repository as the `codescape/` submodule, owns the compose service and nginx route, builds the CUDA PTX, and publishes [`visionclaw-wire`](https://crates.io/crates/visionclaw-wire), the frozen position wire. Its Godot XR client connects through `/wss`. |
 | [agentbox](https://github.com/DreamLab-AI/agentbox) | The agent container. The activity-sink hook ([ADR-2146](https://github.com/DreamLab-AI/agentbox/blob/main/docs/adr/ADR-2146-activity-sink-hook.md); merged, default-off) posts agent activity to `:4101`. |
 | [loom](https://github.com/DreamLab-AI/loom) | Optional out-of-grammar command parse (`CODESCAPE_LOOM_URL`); voice runs without it. |
