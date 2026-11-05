@@ -1,5 +1,11 @@
 # BASELINE: Codescape
 
+The [2026-11-03 presence repair](adr/ADR-0001-extraction-from-visionclaw.md#presence-repair-2026-11-03)
+enforces current membership before relaying and separates roster control from
+lossy poses, closing a peer explicitly if its control queue cannot keep up.
+The topology's repository/revision metadata identifies its graph snapshot.
+Local source and test closure does not establish deployment.
+
 The [2026-11-02 scoped review](adr/ADR-0001-extraction-from-visionclaw.md#scoped-external-review-note-2026-11-02)
 records open presence membership and roster-delivery gaps. These are source
 observations at the declared revision, with no new deployment or phase-gate

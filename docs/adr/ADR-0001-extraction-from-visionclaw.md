@@ -16,6 +16,23 @@ repo: codescape
 
 # ADR-0001: Codescape is extracted from VisionClaw into its own repository with a per-crate licence split
 
+## Presence repair, 2026-11-03
+
+Implementation `d2c3c3b4e65b39788b3489b52badbc92488b2f6b` fences relay calls to
+currently registered membership ids. Pose frames retain a lossy bounded queue;
+roster transitions have an independent bounded control queue. Saturating the
+control queue explicitly closes the peer so reconnect must obtain a fresh
+roster. It cannot silently retain an inconsistent roster. The XR topology JSON
+also carries the snapshot repository label and monotonic revision with each
+node, including annotated nodes. This revision is not a Git commit identifier.
+
+The full workspace run with serial tests passes 299 tests including doctests,
+with 7 ignored; warnings-denied Clippy across all workspace targets and rustdoc
+pass. An initial concurrent ingest file-watcher timing failure passed both its
+isolated rerun and the full serial rerun without assertion changes. Presence
+regressions cover stale replacement handles, pose-queue saturation and explicit
+closure on control-queue saturation. No service was deployed.
+
 ## Scoped external-review note, 2026-11-02
 
 Source reading at `58108c0357bd0dbf6588f8b6adf6e044f4c04556` confirms two
