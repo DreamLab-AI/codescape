@@ -35,9 +35,9 @@ describe('endpoints and backoff', () => {
   it('uses the same origin by default and ?server= when given', () => {
     const same = resolveEndpoints({ protocol: 'https:', host: 'cs.example:4100', search: '' });
     expect(same).toMatchObject({ http: '', positions: 'wss://cs.example:4100/ws/positions', events: 'wss://cs.example:4100/ws/events', voice: 'wss://cs.example:4100/ws/voice' });
-    const o = resolveEndpoints({ protocol: 'http:', host: 'localhost:5173', search: '?server=http://10.0.0.2:4100' });
+    const o = resolveEndpoints({ protocol: 'http:', host: 'localhost:5173', search: '?server=http://10.0.0.2:4100' }, ['10.0.0.2:4100']);
     expect(o).toMatchObject({ http: 'http://10.0.0.2:4100', positions: 'ws://10.0.0.2:4100/ws/positions', label: 'http://10.0.0.2:4100' });
-    expect(resolveEndpoints({ protocol: 'http:', host: 'h', search: '?server=box:4100' }).events).toBe('ws://box:4100/ws/events');
+    expect(resolveEndpoints({ protocol: 'http:', host: 'h', search: '?server=box:4100' }, ['box:4100']).events).toBe('ws://box:4100/ws/events');
     expect(isDemo('?demo=1')).toBe(true);
     expect(isDemo('?demo=0')).toBe(false);
     expect(isDemo('')).toBe(false);
@@ -70,10 +70,33 @@ describe('endpoints and backoff', () => {
     }
     const other = resolveEndpoints({ protocol: 'http:', host: 'h:3001', search: '', pathname: '/other' });
     expect(other).toMatchObject({ http: '', events: 'ws://h:3001/ws/events', pagePrefix: '' });
-    const o = resolveEndpoints({ protocol: 'http:', host: 'h:3001', search: '?server=box:4100', pathname: '/codescape/' });
+    const o = resolveEndpoints({ protocol: 'http:', host: 'h:3001', search: '?server=box:4100', pathname: '/codescape/' }, ['box:4100']);
     expect(o).toMatchObject({ http: 'http://box:4100', events: 'ws://box:4100/ws/events', voice: 'ws://box:4100/ws/voice', label: 'http://box:4100' });
     // The page is still under the shared port, so the VisionClaw link stays.
     expect(o.pagePrefix).toBe('/codescape');
+  });
+  it('ignores a ?server= override that is not same-host, loopback or allowlisted (W4COVC-F1)', () => {
+    const base = { protocol: 'https:', host: 'cs.example:4100', pathname: '/' };
+    const hostile = resolveEndpoints({ ...base, search: '?server=https://evil.example' });
+    expect(hostile).toMatchObject({ http: '', positions: 'wss://cs.example:4100/ws/positions', voice: 'wss://cs.example:4100/ws/voice', rejectedServer: 'https://evil.example' });
+    // Same host (other port) is not enough to trust: host:port must match.
+    expect(resolveEndpoints({ ...base, search: '?server=https://cs.example:9999' }).rejectedServer).toBeDefined();
+    // Non-http(s) schemes and unparsable values are ignored, never thrown.
+    expect(resolveEndpoints({ ...base, search: '?server=javascript:alert(1)' }).http).toBe('');
+    expect(resolveEndpoints({ ...base, search: '?server=ftp://cs.example:4100' }).rejectedServer).toBeDefined();
+    expect(resolveEndpoints({ ...base, search: '?server=http://' }).http).toBe('');
+    // Userinfo cannot smuggle a different host past the check.
+    expect(resolveEndpoints({ ...base, search: '?server=https://cs.example:4100@evil.example' }).rejectedServer).toBeDefined();
+  });
+  it('accepts same-origin, loopback and allowlisted overrides', () => {
+    const base = { protocol: 'http:', host: 'cs.example:4100', pathname: '/' };
+    expect(resolveEndpoints({ ...base, search: '?server=http://cs.example:4100' }).rejectedServer).toBeUndefined();
+    const lo = resolveEndpoints({ ...base, search: '?server=http://localhost:4100' });
+    expect(lo).toMatchObject({ http: 'http://localhost:4100' });
+    expect(lo.rejectedServer).toBeUndefined();
+    expect(resolveEndpoints({ ...base, search: '?server=127.0.0.1:4100' }).http).toBe('http://127.0.0.1:4100');
+    expect(resolveEndpoints({ ...base, search: '?server=http://[::1]:4100' }).http).toBe('http://[::1]:4100');
+    expect(resolveEndpoints({ ...base, search: '?server=https://ok.example' }, ['ok.example']).http).toBe('https://ok.example');
   });
   it('splits candidate labels at the first em-dash separator', () => {
     expect(splitCandidate('apply_delta \u2014 src/graph.rs:42')).toEqual({ name: 'apply_delta', detail: ' \u2014 src/graph.rs:42' });

@@ -2,7 +2,22 @@
  * Server addressing. Same origin by default (under `/codescape` when served
  * through the VisionClaw port); `?server=http://host:4100` overrides for development.
  * `?demo=1` runs without a server.
+ *
+ * The override is gated (W4COVC-F1): REST, the position/event sockets and the
+ * push-to-talk microphone stream all follow it, so a link carrying
+ * `?server=https://attacker` would otherwise redirect them. It is honoured only
+ * for the page's own `host:port`, a loopback host, or a host listed in the
+ * build-time `VITE_CODESCAPE_SERVER_ALLOW` (comma-separated `host` or
+ * `host:port`). Anything else is ignored and reported in `Endpoints.rejectedServer`.
  */
+
+const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/** Hosts allowed by the build, from `VITE_CODESCAPE_SERVER_ALLOW`. */
+export function configuredAllowedHosts(): string[] {
+  const raw = (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_CODESCAPE_SERVER_ALLOW ?? '';
+  return raw.split(',').map((h) => h.trim().toLowerCase()).filter(Boolean);
+}
 
 /** First path segments that mark Codescape as served under a shared-port prefix (VisionClaw nginx strips it). */
 export const PATH_PREFIXES: readonly string[] = ['codescape'];
@@ -27,17 +42,46 @@ export interface Endpoints {
   label: string;
   /** Prefix the page itself is served under, independent of `?server=` ('' = served at the root). */
   pagePrefix: string;
+  /** The `?server=` value that was ignored because it failed the origin gate (undefined when none or accepted). */
+  rejectedServer?: string;
 }
 
-export function resolveEndpoints(loc: { protocol: string; host: string; search: string; pathname?: string }): Endpoints {
+/** Parse a `?server=` value; null when it is not an http(s) URL with a host and no userinfo. */
+function parseOverride(override: string): URL | null {
+  let u: URL;
+  try {
+    u = new URL(override.includes('://') ? override : `http://${override}`);
+  } catch {
+    return null;
+  }
+  if ((u.protocol !== 'http:' && u.protocol !== 'https:') || !u.hostname || u.username || u.password) return null;
+  return u;
+}
+
+function overrideAllowed(u: URL, pageHost: string, allowed: readonly string[]): boolean {
+  const host = u.host.toLowerCase();
+  return (
+    host === pageHost.toLowerCase() ||
+    LOOPBACK.has(u.hostname.toLowerCase()) ||
+    allowed.includes(host) ||
+    allowed.includes(u.hostname.toLowerCase())
+  );
+}
+
+export function resolveEndpoints(
+  loc: { protocol: string; host: string; search: string; pathname?: string },
+  allowedHosts: readonly string[] = configuredAllowedHosts(),
+): Endpoints {
   const params = new URLSearchParams(loc.search);
   const override = params.get('server');
   const pagePrefix = detectPrefix(loc.pathname ?? '/');
   let httpBase: string;
   let wsBase: string;
   let label: string;
-  if (override) {
-    const u = new URL(override.includes('://') ? override : `http://${override}`);
+  let rejectedServer: string | undefined;
+  const u = override ? parseOverride(override) : null;
+  if (override && (!u || !overrideAllowed(u, loc.host, allowedHosts))) rejectedServer = override;
+  if (override && u && !rejectedServer) {
     const p = u.pathname.replace(/\/+$/, '');
     httpBase = `${u.protocol}//${u.host}${p}`;
     wsBase = `${u.protocol === 'https:' ? 'wss:' : 'ws:'}//${u.host}${p}`;
@@ -54,6 +98,7 @@ export function resolveEndpoints(loc: { protocol: string; host: string; search: 
     voice: `${wsBase}/ws/voice`,
     label,
     pagePrefix,
+    ...(rejectedServer !== undefined ? { rejectedServer } : {}),
   };
 }
 
