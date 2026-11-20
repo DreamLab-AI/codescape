@@ -285,6 +285,12 @@ pub async fn run_command(
     out
 }
 
+/// Text spoken when the model's reply fails validation. The reply is
+/// untrusted and unvalidated, so none of it is echoed (W4COVC-F2).
+fn invalid_reply_answer(_reply: &serde_json::Value) -> String {
+    "I could not interpret that.".to_owned()
+}
+
 /// Longest command text parsed (characters); longer input is truncated and the answer says so.
 pub const MAX_COMMAND_CHARS: usize = 512;
 
@@ -323,11 +329,7 @@ async fn run_command_inner(
                     Err(e) => {
                         // Spoken as text, never executed.
                         tracing::info!(error = %e, "Loom reply failed validation");
-                        let answer = v
-                            .get("answer")
-                            .and_then(|a| a.as_str())
-                            .unwrap_or("I could not interpret that.")
-                            .to_string();
+                        let answer = invalid_reply_answer(&v);
                         return Ok((
                             QueryResult {
                                 answer,
@@ -494,6 +496,15 @@ mod tests {
             tier,
             size: 0,
         }
+    }
+
+    #[test]
+    fn invalid_loom_reply_never_echoes_model_text() {
+        let long = "x".repeat(100_000);
+        let v = json!({"command": "rm_rf", "answer": long});
+        assert!(command_from_llm(&v).is_err());
+        let spoken = invalid_reply_answer(&v);
+        assert_eq!(spoken, "I could not interpret that.");
     }
 
     /// Every example the Loom prompt teaches must validate into a `Command`.

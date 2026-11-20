@@ -54,7 +54,7 @@ pub use actors::{Actor, ActorKind, ActorRegistry};
 pub use floor::{FloorArbiter, DEFAULT_HOLD_CAP_MS};
 pub use fuzzy::{fuzzy_rank, split_identifier};
 pub use grammar::{normalise_spoken, parse_command, Command, ParseError, Target};
-pub use llm::{command_from_llm, command_schema};
+pub use llm::{bound_answer, command_from_llm, command_schema, MAX_ANSWER_LEN};
 pub use paths::{resolve_paths, PathMap, PathMapError};
 pub use timeline::{Entry, TimelineEntry, TimelineLog};
 

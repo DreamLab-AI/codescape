@@ -17,6 +17,28 @@ use crate::grammar::{
     Command, ParseError, MAX_CANDIDATE, MAX_DEPTH, MAX_NAME_LEN, MAX_REWIND_SECONDS, MAX_TASK_LEN,
 };
 
+/// Longest spoken `answer` (characters) accepted from the language model.
+/// The schema advertises it as `maxLength`; [`command_from_llm`] and
+/// [`bound_answer`] enforce it because a model may ignore the schema.
+pub const MAX_ANSWER_LEN: usize = 600;
+
+/// Truncate model-supplied text to [`MAX_ANSWER_LEN`] characters (on a
+/// character boundary), ending with an ellipsis when it was cut.
+///
+/// ```
+/// use codescape_collab::llm::{bound_answer, MAX_ANSWER_LEN};
+/// assert_eq!(bound_answer("hi"), "hi");
+/// assert_eq!(bound_answer(&"x".repeat(MAX_ANSWER_LEN + 50)).chars().count(), MAX_ANSWER_LEN);
+/// ```
+pub fn bound_answer(s: &str) -> String {
+    if s.chars().count() <= MAX_ANSWER_LEN {
+        return s.to_owned();
+    }
+    let mut out: String = s.chars().take(MAX_ANSWER_LEN - 1).collect();
+    out.push('\u{2026}');
+    out
+}
+
 /// Every [`Lang`] variant, in declaration order. A test with an exhaustive
 /// match keeps this list complete.
 pub(crate) const ALL_LANGS: [Lang; 12] = [
@@ -177,7 +199,7 @@ pub fn command_schema() -> Value {
         "type": "object",
         "properties": {
             "command": { "anyOf": variants },
-            "answer": { "type": "string" },
+            "answer": { "type": "string", "maxLength": MAX_ANSWER_LEN },
         },
         "required": ["command", "answer"],
         "additionalProperties": false,
@@ -213,7 +235,7 @@ pub fn command_from_llm(v: &Value) -> Result<(Option<Command>, String), ParseErr
     if let Some(cmd) = &reply.command {
         cmd.validate()?;
     }
-    Ok((reply.command, reply.answer))
+    Ok((reply.command, bound_answer(&reply.answer)))
 }
 
 #[cfg(test)]
@@ -466,6 +488,26 @@ mod tests {
         for (c, want) in cases {
             assert_eq!(serde_json::to_value(&c).unwrap(), want);
         }
+    }
+
+    #[test]
+    fn answer_is_bounded_in_schema_and_on_parse() {
+        let schema = command_schema();
+        assert_eq!(
+            schema["properties"]["answer"]["maxLength"],
+            json!(MAX_ANSWER_LEN)
+        );
+        let long = "é".repeat(MAX_ANSWER_LEN * 10);
+        let reply = json!({"command": null, "answer": long});
+        assert!(!conforms(&schema, &reply), "schema rejects an over-long answer");
+        let (_, answer) = command_from_llm(&reply).unwrap();
+        assert_eq!(answer.chars().count(), MAX_ANSWER_LEN);
+        assert!(answer.ends_with('\u{2026}'));
+        let exact = "a".repeat(MAX_ANSWER_LEN);
+        assert_eq!(
+            command_from_llm(&json!({"answer": exact.clone()})).unwrap().1,
+            exact
+        );
     }
 
     #[test]
