@@ -75,7 +75,7 @@ describe('endpoints and backoff', () => {
     // The page is still under the shared port, so the VisionClaw link stays.
     expect(o.pagePrefix).toBe('/codescape');
   });
-  it('ignores a ?server= override that is not same-host, loopback or allowlisted (W4COVC-F1)', () => {
+  it('ignores a ?server= override that is not same-origin, loopback-from-loopback or allowlisted (W4COVC-F1)', () => {
     const base = { protocol: 'https:', host: 'cs.example:4100', pathname: '/' };
     const hostile = resolveEndpoints({ ...base, search: '?server=https://evil.example' });
     expect(hostile).toMatchObject({ http: '', positions: 'wss://cs.example:4100/ws/positions', voice: 'wss://cs.example:4100/ws/voice', rejectedServer: 'https://evil.example' });
@@ -88,15 +88,31 @@ describe('endpoints and backoff', () => {
     // Userinfo cannot smuggle a different host past the check.
     expect(resolveEndpoints({ ...base, search: '?server=https://cs.example:4100@evil.example' }).rejectedServer).toBeDefined();
   });
-  it('accepts same-origin, loopback and allowlisted overrides', () => {
+  it('accepts same-origin and allowlisted overrides, and loopback only from a loopback page', () => {
     const base = { protocol: 'http:', host: 'cs.example:4100', pathname: '/' };
     expect(resolveEndpoints({ ...base, search: '?server=http://cs.example:4100' }).rejectedServer).toBeUndefined();
-    const lo = resolveEndpoints({ ...base, search: '?server=http://localhost:4100' });
+    expect(resolveEndpoints({ ...base, search: '?server=https://ok.example' }, ['ok.example']).http).toBe('https://ok.example');
+    const dev = { protocol: 'http:', host: 'localhost:5173', pathname: '/' };
+    const lo = resolveEndpoints({ ...dev, search: '?server=http://localhost:4100' });
     expect(lo).toMatchObject({ http: 'http://localhost:4100' });
     expect(lo.rejectedServer).toBeUndefined();
-    expect(resolveEndpoints({ ...base, search: '?server=127.0.0.1:4100' }).http).toBe('http://127.0.0.1:4100');
-    expect(resolveEndpoints({ ...base, search: '?server=http://[::1]:4100' }).http).toBe('http://[::1]:4100');
-    expect(resolveEndpoints({ ...base, search: '?server=https://ok.example' }, ['ok.example']).http).toBe('https://ok.example');
+    expect(resolveEndpoints({ ...dev, search: '?server=127.0.0.1:4100' }).http).toBe('http://127.0.0.1:4100');
+    expect(resolveEndpoints({ ...dev, search: '?server=http://[::1]:4100' }).http).toBe('http://[::1]:4100');
+    expect(resolveEndpoints({ protocol: 'http:', host: '[::1]:5173', search: '?server=http://localhost:4100' }).rejectedServer).toBeUndefined();
+  });
+  it('refuses loopback from a remotely served page and a scheme downgrade of its own host', () => {
+    // A link to the deployed site must not steer REST, sockets and the microphone at a local listener.
+    const remote = { protocol: 'https:', host: 'cs.example', pathname: '/' };
+    for (const v of ['http://localhost:4100', '127.0.0.1:4100', 'http://[::1]:4100', 'http://127.1:9']) {
+      const o = resolveEndpoints({ ...remote, search: `?server=${v}` });
+      expect(o.rejectedServer).toBe(v);
+      expect(o.voice).toBe('wss://cs.example/ws/voice');
+    }
+    // Same host and default port, other scheme: not the page's origin.
+    expect(resolveEndpoints({ ...remote, search: '?server=http://cs.example' }).rejectedServer).toBeDefined();
+    expect(resolveEndpoints({ ...remote, search: '?server=https://cs.example' }).rejectedServer).toBeUndefined();
+    // An allowlisted loopback entry is still an explicit build-time choice.
+    expect(resolveEndpoints({ ...remote, search: '?server=http://localhost:4100' }, ['localhost:4100']).rejectedServer).toBeUndefined();
   });
   it('splits candidate labels at the first em-dash separator', () => {
     expect(splitCandidate('apply_delta \u2014 src/graph.rs:42')).toEqual({ name: 'apply_delta', detail: ' \u2014 src/graph.rs:42' });

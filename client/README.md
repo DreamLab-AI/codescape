@@ -13,7 +13,7 @@ npm run dev             # Vite dev server with COOP/COEP headers
 
 Serve a build with `codescape-server --static-dir target/codescape-dist`.
 
-Runtime addressing (`src/net/config.ts`): same origin by default; under a `/codescape` first path segment the page treats that as its prefix (served through VisionClaw's port); `?server=http://host:4100` overrides the server, but only for the page's own host:port, a loopback host, or a host in the build-time `VITE_CODESCAPE_SERVER_ALLOW` (comma-separated); any other value is ignored (W4COVC-F1); `?demo=1` runs without one.
+Runtime addressing (`src/net/config.ts`): same origin by default; under a `/codescape` first path segment the page treats that as its prefix (served through VisionClaw's port); `?server=http://host:4100` overrides the server, but only for the page's own origin (scheme, host and port), a loopback host when the page itself is served from loopback, or a host in the build-time `VITE_CODESCAPE_SERVER_ALLOW` (comma-separated); any other value is ignored (W4COVC-F1); `?demo=1` runs without one.
 
 ## Layout
 

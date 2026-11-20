@@ -33,11 +33,11 @@ function Connecting({ session }: { session: Session }) {
         </li>
       </ul>
       <p className="cs-dim">
-        Override the server with <code>?server=http://host:4100</code> (loopback, this page's own host, or a build-time allowlisted host), or run without one: <a href="?demo=1">?demo=1</a>
+        Override the server with <code>?server=http://host:4100</code> (this page's own origin, loopback when this page is itself on loopback, or a build-time allowlisted host), or run without one: <a href="?demo=1">?demo=1</a>
       </p>
       {session.endpoints.rejectedServer ? (
         <p className="cs-dim" role="alert">
-          Ignored <code>?server={session.endpoints.rejectedServer}</code>: not this host, loopback or allowlisted.
+          Ignored <code>?server={session.endpoints.rejectedServer}</code>: not this origin, loopback from a loopback page, or allowlisted.
         </p>
       ) : null}
     </div>

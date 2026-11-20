@@ -6,9 +6,9 @@
  * The override is gated (W4COVC-F1): REST, the position/event sockets and the
  * push-to-talk microphone stream all follow it, so a link carrying
  * `?server=https://attacker` would otherwise redirect them. It is honoured only
- * for the page's own `host:port`, a loopback host, or a host listed in the
- * build-time `VITE_CODESCAPE_SERVER_ALLOW` (comma-separated `host` or
- * `host:port`). Anything else is ignored and reported in `Endpoints.rejectedServer`.
+ * for the page's own origin (scheme, host and port), a loopback host when the
+ * page itself is served from loopback, or a host listed in the build-time
+ * `VITE_CODESCAPE_SERVER_ALLOW` (comma-separated `host` or `host:port`). Anything else is ignored and reported in `Endpoints.rejectedServer`.
  */
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]']);
@@ -58,14 +58,25 @@ function parseOverride(override: string): URL | null {
   return u;
 }
 
-function overrideAllowed(u: URL, pageHost: string, allowed: readonly string[]): boolean {
+/** Hostname of a `host[:port]` string, lower-cased ('' when it does not parse). */
+function hostnameOf(host: string): string {
+  try {
+    return new URL(`http://${host}`).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function overrideAllowed(u: URL, page: { protocol: string; host: string }, allowed: readonly string[]): boolean {
   const host = u.host.toLowerCase();
-  return (
-    host === pageHost.toLowerCase() ||
-    LOOPBACK.has(u.hostname.toLowerCase()) ||
-    allowed.includes(host) ||
-    allowed.includes(u.hostname.toLowerCase())
-  );
+  const hostname = u.hostname.toLowerCase();
+  // The page's own origin: scheme, host and port all equal, so an https page is
+  // never pointed at its plain-http twin.
+  if (u.protocol === page.protocol && host === page.host.toLowerCase()) return true;
+  // Loopback only from a page that is itself served from loopback (development).
+  // A remotely served page must not be steered at a local listener by a link.
+  if (LOOPBACK.has(hostname) && LOOPBACK.has(hostnameOf(page.host))) return true;
+  return allowed.includes(host) || allowed.includes(hostname);
 }
 
 export function resolveEndpoints(
@@ -80,7 +91,7 @@ export function resolveEndpoints(
   let label: string;
   let rejectedServer: string | undefined;
   const u = override ? parseOverride(override) : null;
-  if (override && (!u || !overrideAllowed(u, loc.host, allowedHosts))) rejectedServer = override;
+  if (override && (!u || !overrideAllowed(u, loc, allowedHosts))) rejectedServer = override;
   if (override && u && !rejectedServer) {
     const p = u.pathname.replace(/\/+$/, '');
     httpBase = `${u.protocol}//${u.host}${p}`;
