@@ -499,13 +499,18 @@ mod tests {
         );
         let long = "é".repeat(MAX_ANSWER_LEN * 10);
         let reply = json!({"command": null, "answer": long});
-        assert!(!conforms(&schema, &reply), "schema rejects an over-long answer");
+        assert!(
+            !conforms(&schema, &reply),
+            "schema rejects an over-long answer"
+        );
         let (_, answer) = command_from_llm(&reply).unwrap();
         assert_eq!(answer.chars().count(), MAX_ANSWER_LEN);
         assert!(answer.ends_with('\u{2026}'));
         let exact = "a".repeat(MAX_ANSWER_LEN);
         assert_eq!(
-            command_from_llm(&json!({"answer": exact.clone()})).unwrap().1,
+            command_from_llm(&json!({"answer": exact.clone()}))
+                .unwrap()
+                .1,
             exact
         );
     }
