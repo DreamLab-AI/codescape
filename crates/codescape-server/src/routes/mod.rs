@@ -498,6 +498,150 @@ mod tests {
         }
     }
 
+    /// A Loom backend that is a local stub: it answers every request with a chat
+    /// completion whose message content is `reply` (the model's own JSON text),
+    /// and counts the requests it served. No network beyond the loopback port.
+    async fn stub_loom(reply: serde_json::Value) -> (String, Arc<std::sync::atomic::AtomicUsize>) {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!(
+            "http://127.0.0.1:{}/v1",
+            listener.local_addr().unwrap().port()
+        );
+        let served = Arc::new(AtomicUsize::new(0));
+        let counter = served.clone();
+        let body =
+            json!({ "choices": [{ "message": { "content": reply.to_string() } }] }).to_string();
+        tokio::spawn(async move {
+            while let Ok((mut sock, _)) = listener.accept().await {
+                // Read the whole request (headers, then Content-Length bytes).
+                let mut buf = Vec::new();
+                let mut chunk = [0u8; 4096];
+                loop {
+                    let n = sock.read(&mut chunk).await.unwrap_or(0);
+                    if n == 0 {
+                        break;
+                    }
+                    buf.extend_from_slice(&chunk[..n]);
+                    let Some(end) = buf.windows(4).position(|w| w == b"\r\n\r\n") else {
+                        continue;
+                    };
+                    let head = String::from_utf8_lossy(&buf[..end]).to_ascii_lowercase();
+                    let want = head
+                        .lines()
+                        .find_map(|l| l.strip_prefix("content-length:"))
+                        .and_then(|v| v.trim().parse::<usize>().ok())
+                        .unwrap_or(0);
+                    if buf.len() >= end + 4 + want {
+                        break;
+                    }
+                }
+                counter.fetch_add(1, Ordering::SeqCst);
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                let _ = sock.write_all(resp.as_bytes()).await;
+                let _ = sock.shutdown().await;
+            }
+        });
+        (base, served)
+    }
+
+    /// A served repository and an `AppState` whose Loom client points at `loom_url`.
+    fn state_with_loom(dir: &std::path::Path, loom_url: &str) -> (AppState, Arc<RepoEngine>) {
+        use clap::Parser;
+        use codescape_server::auth::build_verifier;
+        use codescape_server::egress::EgressAllowlist;
+        use codescape_server::origin::OriginPolicy;
+        use codescape_server::persist::ActorIds;
+        use codescape_server::proxy::PublicOrigin;
+
+        std::fs::create_dir_all(dir.join("repo/src")).unwrap();
+        std::fs::write(dir.join("repo/src/a.rs"), "fn alpha() {}\n").unwrap();
+        let repo_arg = format!("t={}", dir.join("repo").display());
+        let data = dir.join("data");
+        let cfg = codescape_server::config::Config::try_parse_from([
+            "codescape-server",
+            "--repo",
+            repo_arg.as_str(),
+            "--data-dir",
+            data.to_str().unwrap(),
+            "--loom-url",
+            loom_url,
+            "--loom-model",
+            "stub-model",
+            "--port",
+            "0",
+            "--ingest-port",
+            "0",
+        ])
+        .unwrap();
+        let (engine, _threads) = RepoEngine::open(&cfg, &cfg.repos[0]).unwrap();
+        let egress = EgressAllowlist::from_urls(cfg.egress_urls()).unwrap();
+        let public = PublicOrigin::from_config(&cfg).unwrap();
+        let st = AppState::new(
+            Arc::new(cfg),
+            vec![engine.clone()],
+            egress,
+            build_verifier(false).unwrap(),
+            codescape_collab::PathMap::new(),
+            ActorIds::new(0),
+            OriginPolicy::new(&[]).unwrap(),
+            public,
+            Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        );
+        (st, engine)
+    }
+
+    /// Drive `run_command_inner` with text the grammar cannot match, so the
+    /// request reaches the (stub) Loom, and return what the handler answers.
+    fn ask_stub_loom(reply: serde_json::Value) -> (Result<(QueryResult, Effect), String>, usize) {
+        let dir = tempfile::tempdir().unwrap();
+        actix_web::rt::System::new().block_on(async move {
+            let (base, served) = stub_loom(reply).await;
+            let (st, repo) = state_with_loom(dir.path(), &base);
+            let ctx = Arc::new(Mutex::new(CommandCtx::default()));
+            let out = run_command_inner(&st, &repo, "frobnicate the quuxwidget", ctx).await;
+            (out, served.load(std::sync::atomic::Ordering::SeqCst))
+        })
+    }
+
+    /// W4COVC-F2 at handler level: an over-long model answer reaches the caller
+    /// capped at `MAX_ANSWER_LEN`, not as the model wrote it.
+    #[test]
+    fn handler_caps_an_over_long_model_answer() {
+        let long = "x".repeat(100_000);
+        let (out, served) = ask_stub_loom(json!({"command": null, "answer": long}));
+        assert_eq!(served, 1, "the stub Loom was consulted exactly once");
+        let (result, effect) = out.expect("a model that only answers is not an error");
+        assert!(matches!(effect, Effect::None));
+        assert_eq!(
+            result.answer.chars().count(),
+            codescape_collab::llm::MAX_ANSWER_LEN
+        );
+        assert!(
+            result.answer.ends_with('\u{2026}'),
+            "a cut answer ends with an ellipsis"
+        );
+        assert!(result.answer.starts_with("xxx"));
+    }
+
+    /// W4COVC-F2 at handler level: a reply that fails validation is spoken as the
+    /// fixed string, with none of the model's text, and executes nothing.
+    #[test]
+    fn handler_answers_a_failed_validation_with_the_fixed_string() {
+        let long = "x".repeat(100_000);
+        let (out, served) = ask_stub_loom(json!({"command": "rm_rf", "answer": long}));
+        assert_eq!(served, 1, "the stub Loom was consulted exactly once");
+        let (result, effect) = out.expect("a reply that fails validation is spoken, not an error");
+        assert!(matches!(effect, Effect::None));
+        assert_eq!(result.answer, "I could not interpret that.");
+        assert!(!result.answer.contains('x'));
+    }
+
     #[test]
     fn invalid_loom_reply_never_echoes_model_text() {
         let long = "x".repeat(100_000);
